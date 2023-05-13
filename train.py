@@ -284,7 +284,7 @@ def main():
     if world_size > 1:
         logger.info(f"world_size: {world_size}, target_train_batch_size: {target_train_batch_size}")
         training_args.per_device_train_batch_size = target_train_batch_size // world_size
-        logger.info("Using per_device_batch_size: %s", training_args.per_device_batch_size)
+        logger.info("Using per_device_train_batch_size: %s", training_args.per_device_train_batch_size)
 
         logger.info(f"world_size: {world_size}, target_eval_batch_size: {target_eval_batch_size}")
         training_args.per_device_eval_batch_size = target_eval_batch_size // world_size
