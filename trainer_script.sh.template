@@ -1,0 +1,35 @@
+#!/bin/bash
+
+#-----------------------EDIT THIS-----------------------#
+# Set up environment variables for the experiments. 
+# Can change based on the cluster setup.
+# APP_EXP_DIR should be a shared network storage. We save checkpoints and logs here.
+export APP_EXP_DIR=~/repos/len_gen_lm_exps
+export TRANSFORMERS_CACHE=~/.cache/huggingface/transformers
+export HF_DATASETS_CACHE=~/.cache/huggingface/datasets
+
+# Go to neptune.ai and get your API token
+export NEPTUNE_API_TOKEN=...
+#-----------------------DONE EDIT-----------------------#
+
+# Activate conda environment
+conda activate len_gen_lm
+
+# Read pe_type from command line
+PE_TYPE=$1
+
+# Set Neptune Run ID
+export NEPTUNE_CUSTOM_RUN_ID=wikitext103_$PE_TYPE
+export NEPTUNE_PROJECT=len-gen-lm
+
+# Get number of GPUs
+NUM_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+echo "Running training script with $NUM_GPUS GPUs"
+
+# Use torchrun to run the training script on multiple GPUs
+torchrun --standalone \
+    --nnodes=1 \
+    --nproc-per-node=$NUM_GPUS \
+    train.py \
+    configs/main.json \
+    $PE_TYPE
