@@ -5,4 +5,5 @@ sentencepiece==0.1.99
 evaluate==0.4.0
 scikit-learn==1.2.2
 neptune==1.2.0
+torch>=2.0.0
 protobuf
