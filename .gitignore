@@ -264,5 +264,6 @@ fabric.properties
 /wandb/
 
 /third_parties/
+/.neptune/
 
 trainer_script.sh

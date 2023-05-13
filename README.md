@@ -20,6 +20,7 @@ pip install -r requirements.txt
 Note that `trainer_script.sh` will not be tracked by git.
 ```bash
 cp trainer_script.sh.template trainer_script.sh
+nano trainer_script.sh
 ```
 5. Submit jobs with `trainer_script.sh`. (Enable `len_gen_lm` conda environment for the job.)
 ```bash
