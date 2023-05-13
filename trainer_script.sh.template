@@ -17,6 +17,12 @@ conda activate len_gen_lm
 
 # Read pe_type from command line
 PE_TYPE=$1
+# Make sure PE_TYPE is passed in
+if [ -z "$PE_TYPE" ]
+then
+    echo "PE_TYPE is empty. Please pass in PE_TYPE as the first argument."
+    exit 1
+fi
 
 # Set Neptune Run ID
 export NEPTUNE_CUSTOM_RUN_ID=wikitext103_$PE_TYPE
@@ -29,7 +35,7 @@ echo "Running training script with $NUM_GPUS GPUs"
 # Use torchrun to run the training script on multiple GPUs
 torchrun --standalone \
     --nnodes=1 \
-    --nproc-per-node=$NUM_GPUS \
+    --nproc_per_node=$NUM_GPUS \
     train.py \
     configs/main.json \
     $PE_TYPE
