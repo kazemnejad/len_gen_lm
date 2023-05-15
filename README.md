@@ -39,7 +39,7 @@ nano trainer_script.sh
 - CPU: 6 cores
 - Memory: 32GB
 
-### Inference
+## Inference
 4. Copy `inference_script.sh.template` to `inference_script.sh` and edit `APP_EXP_DIR`, `TRANSFORMERS_CACHE`, `HF_DATASETS_CACHE`, and `NEPTUNE_API_TOKEN` variables. Make sure these variables are the same as the ones in `trainer_script.sh`.
 Note that `inference_script.sh` will not be tracked by git.
 ```bash
