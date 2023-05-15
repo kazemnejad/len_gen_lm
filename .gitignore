@@ -267,3 +267,4 @@ fabric.properties
 /.neptune/
 
 trainer_script.sh
+inference_script.sh

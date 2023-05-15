@@ -19,6 +19,24 @@
                 "TRANSFORMERS_CACHE": "/Tmp/slurm.3197962.0/.cache/transformers",
                 "HF_DATASETS_CACHE": "/Tmp/slurm.3197962.0/.cache/huggingface/datasets",
             }
+        },
+
+        {
+            "name": "Python: Inference",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/inference.py",
+            "console": "integratedTerminal",
+            "args": [
+                "configs/main.json",
+                "t5_relative_bias"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "EXP_DIR": "/Tmp/slurm.3207135.0/experiments",
+                "TRANSFORMERS_CACHE": "/Tmp/slurm.3207135.0/.cache/transformers",
+                "HF_DATASETS_CACHE": "/Tmp/slurm.3207135.0/.cache/huggingface/datasets",
+            }
         }
     ]
 }
