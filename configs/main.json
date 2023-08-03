@@ -25,5 +25,5 @@
     "seed": 42,
     "bf16": true,
     "bf16_full_eval": true,
-    "output_dir": "ignore",
+    "output_dir": "ignore"
 }
