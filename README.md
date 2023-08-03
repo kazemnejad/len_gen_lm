@@ -19,7 +19,7 @@ pip install -r requirements.txt
 4. Fill the environment variables in `env.sh` with
 ```bash
 # We save checkpoints and logs here. It should be shared network storage accessible from all nodes.
-export APP_EXP_DIR=/path/to/network/storage/len_gen_lm/exps
+export PROJECT_DIR=/path/to/network/storage/projects/len_gen_lm
 
 # Go to comet.ml and get your API token
 export COMET_API_KEY="..."

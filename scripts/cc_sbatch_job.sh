@@ -5,8 +5,8 @@ module load httpproxy
 
 source ~/scratch/len_gen_lm/env/bin/activate
 
-cd ~/repos/len_gen_lm/
 
 export TRANSFORMERS_OFFLINE=1
 
+cd ~/repos/len_gen_lm/
 ./run_training.sh "$@"
