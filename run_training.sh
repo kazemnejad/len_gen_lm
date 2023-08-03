@@ -7,8 +7,9 @@ export APP_EXP_DIR=$PROJECT_DIR/exps
 mkdir -p $APP_EXP_DIR
 
 # TRANSFORMERS_CACHE and HF_DATASETS_CACHE
-export TRANSFORMERS_CACHE=$PROJECT_DIR/transformers_cache
-export HF_DATASETS_CACHE=$PROJECT_DIR/datasets_cache
+#export TRANSFORMERS_CACHE=$PROJECT_DIR/transformers_cache
+#export HF_DATASETS_CACHE=$PROJECT_DIR/datasets_cache
+export HF_HOME=$PROJECT_DIR/hf_home
 
 # Read pe_type from command line
 PE_TYPE=$1
