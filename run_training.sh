@@ -3,10 +3,12 @@
 chmod a+x ./env.sh
 source ./env.sh
 
+export APP_EXP_DIR=$PROJECT_DIR/exps
+mkdir -p $APP_EXP_DIR
 
 # TRANSFORMERS_CACHE and HF_DATASETS_CACHE
-export TRANSFORMERS_CACHE=$APP_EXP_DIR/transformers_cache
-export HF_DATASETS_CACHE=$APP_EXP_DIR/datasets_cache
+export TRANSFORMERS_CACHE=$PROJECT_DIR/transformers_cache
+export HF_DATASETS_CACHE=$PROJECT_DIR/datasets_cache
 
 # Read pe_type from command line
 PE_TYPE=$1
