@@ -49,7 +49,7 @@ from transformers import (
     set_seed,
 )
 from transformers.data.data_collator import InputDataClass
-from transformers.integrations import CometCallback
+from transformers.integrations import CometCallback, _has_comet
 from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
@@ -274,6 +274,15 @@ class DataTrainingArguments:
 
 
 class CustomCometCallback(CometCallback):
+    def __init__(self):
+        is_disabled = os.getenv("COMET_MODE", "").upper() != "DISABLED"
+        if not is_disabled and not _has_comet:
+            raise RuntimeError(
+                "CometCallback requires comet-ml to be installed. Run `pip install comet-ml`."
+            )
+        self._initialized = False
+        self._log_assets = False
+
     def setup(self, args, state, model):
         """
         Setup the optional Comet.ml integration.
@@ -311,12 +320,8 @@ class CustomCometCallback(CometCallback):
                 try:
                     experiment = comet_ml.Experiment(**experiment_kwargs)
                 except comet_ml.exceptions.ExperimentAlreadyUploaded:
-                    experiment = comet_ml.ExistingExperiment(
-                        **experiment_kwargs
-                    )
-                    logger.info(
-                        "Resuming experiment {}".format(experiment.get_key())
-                    )
+                    experiment = comet_ml.ExistingExperiment(**experiment_kwargs)
+                    logger.info("Resuming experiment {}".format(experiment.get_key()))
                 experiment.log_other("Created from", "transformers")
                 logger.info("Automatic Comet.ml online logging enabled")
             elif comet_mode == "OFFLINE":
@@ -763,6 +768,8 @@ def main():
             preds = preds[:, :-1].reshape(-1)
             return metric.compute(predictions=preds, references=labels)
 
+    is_comet_disabled = os.getenv("COMET_MODE", "").upper() == "DISABLED"
+
     # Initialize our Trainer
     trainer = Trainer(
         model=model,
@@ -779,7 +786,7 @@ def main():
         preprocess_logits_for_metrics=preprocess_logits_for_metrics
         if training_args.do_eval and not is_torch_tpu_available()
         else None,
-        callbacks=[CustomCometCallback()],
+        callbacks=[CustomCometCallback()] if not is_comet_disabled else None,
     )
 
     # Training
