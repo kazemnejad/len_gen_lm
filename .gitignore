@@ -268,3 +268,5 @@ fabric.properties
 
 trainer_script.sh
 inference_script.sh
+
+env.sh

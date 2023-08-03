@@ -1,5 +1,5 @@
 # len_gen_lm
-## Train
+## Prepare Experiment Environment (Only for the first time)
 1. Clone this repository
 ```bash
 git clone git@github.com:kazemnejad/len_gen_lm.git
@@ -16,52 +16,32 @@ conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvi
 # Install other requirements
 pip install -r requirements.txt
 ```
-4. Copy `trainer_script.sh.template` to `trainer_script.sh` and edit `APP_EXP_DIR`, `TRANSFORMERS_CACHE`, `HF_DATASETS_CACHE`, and `NEPTUNE_API_TOKEN` variables.
-Note that `trainer_script.sh` will not be tracked by git.
+4. Fill the environment variables in `env.sh` with
 ```bash
-cp trainer_script.sh.template trainer_script.sh
-nano trainer_script.sh
+# We save checkpoints and logs here. It should be shared network storage accessible from all nodes.
+export APP_EXP_DIR=/path/to/network/storage/len_gen_lm/exps
+
+# Go to comet.ml and get your API token
+export COMET_API_KEY="..."
 ```
-5. Submit jobs with `trainer_script.sh`. (Enable `len_gen_lm` conda environment for the job.)
+## Train
 ```bash
-./trainer_script.sh <PE_TYPE>
+./run_training.sh <pe> <size>
 ```
 
-`<PE_TYPE>` can be chosen from:
-- `t5_relative_bias`: T5 with relative bias
-- `rotary`: Rotary
-- `abs_sinusoid`: Absolute sinusoid
+`<pe>` can be chosen from:
 - `alibi`: Alibi
 - `none`: NoPE
 
-### What compute resources should be used?
-- GPU: 2x A100 40GB (or 80GB). V100 doesn't work. 1x A100 80GB works but it's going to be slow.
-- CPU: 6 cores
-- Memory: 32GB
-
-## Inference
-4. Copy `inference_script.sh.template` to `inference_script.sh` and edit `APP_EXP_DIR`, `TRANSFORMERS_CACHE`, `HF_DATASETS_CACHE`, and `NEPTUNE_API_TOKEN` variables. Make sure these variables are the same as the ones in `trainer_script.sh`.
-Note that `inference_script.sh` will not be tracked by git.
-```bash
-cp inference_script.sh.template inference_script.sh
-nano inference_script.sh
-```
-5. Submit jobs with `inference_script.sh`. (Enable `len_gen_lm` conda environment for the job.)
-```bash
-./inference_script.sh <PE_TYPE>
-```
-
-`<PE_TYPE>` can be chosen from:
-- `t5_relative_bias`: T5 with relative bias
-- `rotary`: Rotary
-- `abs_sinusoid`: Absolute sinusoid
-- `alibi`: Alibi
-- `none`: NoPE
+`<size>` can be chosen from:
+- `100m`
+- `300m`
+- `1b`
 
 ### What compute resources should be used?
-- GPU: **1x A100** 40GB (or 80GB). V100 doesn't work.
+at least:
 - CPU: 6 cores
 - Memory: 32GB
+- GPU: 1x A100 80gb
 
-
-
+it will use all gpus available on the node. So, the more gpus you have, the faster it will be.
