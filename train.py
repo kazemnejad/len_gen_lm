@@ -313,6 +313,7 @@ class CustomCometCallback(CometCallback):
             comet_mode = os.getenv("COMET_MODE", "ONLINE").upper()
             experiment = None
             experiment_key = os.getenv("CUSTOM_EXPERIMENT_KEY", None)
+            experiment_name = os.getenv("CUSTOM_EXPERIMENT_NAME", None)
             experiment_kwargs = {
                 "project_name": os.getenv("COMET_PROJECT_NAME", "huggingface"),
                 "experiment_key": experiment_key,
@@ -332,6 +333,7 @@ class CustomCometCallback(CometCallback):
                     logger.info("Resuming experiment {}".format(experiment.get_key()))
                 else:
                     experiment = comet_ml.Experiment(**experiment_kwargs)
+                    experiment.set_name(experiment_name)
 
                 experiment.log_other("Created from", "transformers")
                 logger.info("Automatic Comet.ml online logging enabled")
