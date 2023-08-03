@@ -42,6 +42,5 @@ export COMET_API_KEY="..."
 at least:
 - CPU: 6 cores
 - Memory: 32GB
-- GPU: 1x A100 80gb
 
-it will use all gpus available on the node. So, the more gpus you have, the faster it will be.
+it will use all gpus available on the node. So, the more gpus we have, the faster it will be.
