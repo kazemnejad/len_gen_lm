@@ -235,7 +235,7 @@ class CustomT5Attention(T5Attention):
         if past_key_value is not None:
             assert (
                 len(past_key_value) == 2
-            ), f"past_key_value should have 2 past states: keys and values. Got { len(past_key_value)} past states"
+            ), f"past_key_value should have 2 past states: keys and values. Got {len(past_key_value)} past states"
             real_seq_length += (
                 past_key_value[0].shape[2] if query_length is None else query_length
             )
@@ -377,7 +377,6 @@ class CustomT5Attention(T5Attention):
             key_states = key_states.permute(0, 2, 1, 3)
 
             if self.rotary_dim is not None:
-
                 k_rot = key_states[:, :, :, : self.rotary_dim]
                 k_pass = key_states[:, :, :, self.rotary_dim :]
 
@@ -601,7 +600,10 @@ def build_alibi_tensor(
         dtype (`torch.dtype`, *optional*, default=`torch.bfloat16`):
             dtype of the output tensor
     """
-    batch_size, seq_length = attention_mask.shape
+    if len(attention_mask.shape) == 2:
+        batch_size, seq_length = attention_mask.shape
+    elif len(attention_mask.shape) == 3:
+        batch_size, _, seq_length = attention_mask.shape
     closest_power_of_2 = 2 ** math.floor(math.log2(num_heads))
     base = torch.tensor(
         2 ** (-(2 ** -(math.log2(closest_power_of_2) - 3))),
@@ -918,10 +920,17 @@ class CustomT5Stack(T5Stack):
 
         if self.position_encoding_type == POSITION_ENCODING_ALiBi:
             num_heads = self.config.num_heads
+            if len(attention_mask.shape) == 3:
+                # We need to make a default attention mask
+                alibi_attention_mask = torch.ones(batch_size, mask_seq_length).to(inputs_embeds.device)
+            else:
+                alibi_attention_mask = attention_mask
+
             alibi = build_alibi_tensor(
-                attention_mask, num_heads, dtype=inputs_embeds.dtype
+                alibi_attention_mask, num_heads, dtype=inputs_embeds.dtype
             )
             position_bias = alibi
+            del alibi_attention_mask
 
         if self.position_encoding_type in [POSITION_ENCODING_ALiBi_LEARNED]:
             if not hasattr(self, "alibi"):
@@ -1112,7 +1121,6 @@ class CustomT5Stack(T5Stack):
 
 
 class CustomDecoderOnlyT5(T5PreTrainedModel):
-
     _keys_to_ignore_on_load_missing = [
         r"decoder\.embed_tokens\.weight",
         r"encoder",
@@ -1124,9 +1132,9 @@ class CustomDecoderOnlyT5(T5PreTrainedModel):
 
     def __init__(
         self,
-        config = None,
+        config=None,
         position_encoding_type: Optional[str] = None,
-        tokenizer = None,
+        tokenizer=None,
         **kwargs,
     ):
         assert config is not None

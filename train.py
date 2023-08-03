@@ -27,7 +27,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 import datasets
 import evaluate
@@ -48,6 +48,8 @@ from transformers import (
     is_torch_tpu_available,
     set_seed,
 )
+from transformers.data.data_collator import InputDataClass
+from transformers.integrations import CometCallback
 from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
@@ -72,11 +74,7 @@ class ModelArguments:
 
     pe_type: Optional[str] = field(
         default=None,
-        metadata={
-            "help": (
-                "Positional encoding type. "
-            )
-        },
+        metadata={"help": ("Positional encoding type. ")},
     )
 
     model_name_or_path: Optional[str] = field(
@@ -89,7 +87,10 @@ class ModelArguments:
     )
     model_type: Optional[str] = field(
         default=None,
-        metadata={"help": "If training from scratch, pass a model type from the list: " + ", ".join(MODEL_TYPES)},
+        metadata={
+            "help": "If training from scratch, pass a model type from the list: "
+            + ", ".join(MODEL_TYPES)
+        },
     )
     config_overrides: Optional[str] = field(
         default=None,
@@ -101,22 +102,34 @@ class ModelArguments:
         },
     )
     config_name: Optional[str] = field(
-        default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
+        default=None,
+        metadata={
+            "help": "Pretrained config name or path if not the same as model_name"
+        },
     )
     tokenizer_name: Optional[str] = field(
-        default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
+        default=None,
+        metadata={
+            "help": "Pretrained tokenizer name or path if not the same as model_name"
+        },
     )
     cache_dir: Optional[str] = field(
         default=None,
-        metadata={"help": "Where do you want to store the pretrained models downloaded from huggingface.co"},
+        metadata={
+            "help": "Where do you want to store the pretrained models downloaded from huggingface.co"
+        },
     )
     use_fast_tokenizer: bool = field(
         default=True,
-        metadata={"help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."},
+        metadata={
+            "help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."
+        },
     )
     model_revision: str = field(
         default="main",
-        metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
+        metadata={
+            "help": "The specific model version to use (can be a branch name, tag name or commit id)."
+        },
     )
     use_auth_token: bool = field(
         default=False,
@@ -148,7 +161,9 @@ class ModelArguments:
     )
 
     def __post_init__(self):
-        if self.config_overrides is not None and (self.config_name is not None or self.model_name_or_path is not None):
+        if self.config_overrides is not None and (
+            self.config_name is not None or self.model_name_or_path is not None
+        ):
             raise ValueError(
                 "--config_overrides can't be used in combination with --config_name or --model_name_or_path"
             )
@@ -161,15 +176,23 @@ class DataTrainingArguments:
     """
 
     dataset_name: Optional[str] = field(
-        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+        default=None,
+        metadata={"help": "The name of the dataset to use (via the datasets library)."},
     )
     dataset_config_name: Optional[str] = field(
-        default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
+        default=None,
+        metadata={
+            "help": "The configuration name of the dataset to use (via the datasets library)."
+        },
     )
-    train_file: Optional[str] = field(default=None, metadata={"help": "The input training data file (a text file)."})
+    train_file: Optional[str] = field(
+        default=None, metadata={"help": "The input training data file (a text file)."}
+    )
     validation_file: Optional[str] = field(
         default=None,
-        metadata={"help": "An optional input evaluation data file to evaluate the perplexity on (a text file)."},
+        metadata={
+            "help": "An optional input evaluation data file to evaluate the perplexity on (a text file)."
+        },
     )
     max_train_samples: Optional[int] = field(
         default=None,
@@ -201,7 +224,8 @@ class DataTrainingArguments:
         },
     )
     overwrite_cache: bool = field(
-        default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
+        default=False,
+        metadata={"help": "Overwrite the cached training and evaluation sets"},
     )
     validation_split_percentage: Optional[int] = field(
         default=5,
@@ -214,36 +238,143 @@ class DataTrainingArguments:
         metadata={"help": "The number of processes to use for the preprocessing."},
     )
     keep_linebreaks: bool = field(
-        default=True, metadata={"help": "Whether to keep line breaks when using TXT files or not."}
+        default=True,
+        metadata={"help": "Whether to keep line breaks when using TXT files or not."},
     )
 
     def __post_init__(self):
         if self.streaming:
-            require_version("datasets>=2.0.0", "The streaming feature requires `datasets>=2.0.0`")
+            require_version(
+                "datasets>=2.0.0", "The streaming feature requires `datasets>=2.0.0`"
+            )
 
-        if self.dataset_name is None and self.train_file is None and self.validation_file is None:
-            raise ValueError("Need either a dataset name or a training/validation file.")
+        if (
+            self.dataset_name is None
+            and self.train_file is None
+            and self.validation_file is None
+        ):
+            raise ValueError(
+                "Need either a dataset name or a training/validation file."
+            )
         else:
             if self.train_file is not None:
                 extension = self.train_file.split(".")[-1]
-                assert extension in ["csv", "json", "txt"], "`train_file` should be a csv, a json or a txt file."
+                assert extension in [
+                    "csv",
+                    "json",
+                    "txt",
+                ], "`train_file` should be a csv, a json or a txt file."
             if self.validation_file is not None:
                 extension = self.validation_file.split(".")[-1]
-                assert extension in ["csv", "json", "txt"], "`validation_file` should be a csv, a json or a txt file."
+                assert extension in [
+                    "csv",
+                    "json",
+                    "txt",
+                ], "`validation_file` should be a csv, a json or a txt file."
+
+
+class CustomCometCallback(CometCallback):
+    def setup(self, args, state, model):
+        """
+        Setup the optional Comet.ml integration.
+
+        Environment:
+        - **COMET_MODE** (`str`, *optional*, defaults to `ONLINE`):
+            Whether to create an online, offline experiment or disable Comet logging. Can be `OFFLINE`, `ONLINE`, or
+            `DISABLED`.
+        - **COMET_PROJECT_NAME** (`str`, *optional*):
+            Comet project name for experiments.
+        - **COMET_OFFLINE_DIRECTORY** (`str`, *optional*):
+            Folder to use for saving offline experiments when `COMET_MODE` is `OFFLINE`.
+        - **COMET_LOG_ASSETS** (`str`, *optional*, defaults to `TRUE`):
+            Whether or not to log training assets (tf event logs, checkpoints, etc), to Comet. Can be `TRUE`, or
+            `FALSE`.
+
+        For a number of configurable items in the environment, see
+        [here](https://www.comet.ml/docs/python-sdk/advanced/#comet-configuration-variables).
+        """
+        import comet_ml
+
+        self._initialized = True
+        log_assets = os.getenv("COMET_LOG_ASSETS", "FALSE").upper()
+        if log_assets in {"TRUE", "1"}:
+            self._log_assets = True
+        if state.is_world_process_zero:
+            comet_mode = os.getenv("COMET_MODE", "ONLINE").upper()
+            experiment = None
+            experiment_key = os.getenv("CUSTOM_EXPERIMENT_KEY", None)
+            experiment_kwargs = {
+                "project_name": os.getenv("COMET_PROJECT_NAME", "huggingface"),
+                "experiment_key": experiment_key,
+            }
+            if comet_mode == "ONLINE":
+                try:
+                    experiment = comet_ml.Experiment(**experiment_kwargs)
+                except comet_ml.exceptions.ExperimentAlreadyUploaded:
+                    experiment = comet_ml.ExistingExperiment(
+                        **experiment_kwargs
+                    )
+                    logger.info(
+                        "Resuming experiment {}".format(experiment.get_key())
+                    )
+                experiment.log_other("Created from", "transformers")
+                logger.info("Automatic Comet.ml online logging enabled")
+            elif comet_mode == "OFFLINE":
+                experiment_kwargs["offline_directory"] = os.getenv(
+                    "COMET_OFFLINE_DIRECTORY", "./"
+                )
+                experiment = comet_ml.OfflineExperiment(**experiment_kwargs)
+                experiment.log_other("Created from", "transformers")
+                logger.info(
+                    "Automatic Comet.ml offline logging enabled; use `comet upload` when finished"
+                )
+            if experiment is not None:
+                experiment._set_model_graph(model, framework="transformers")
+                experiment._log_parameters(
+                    args, prefix="args/", framework="transformers"
+                )
+                if hasattr(model, "config"):
+                    experiment._log_parameters(
+                        model.config, prefix="config/", framework="transformers"
+                    )
 
 
 import model as modeling
+
+
+def data_collator(features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
+    if "attention_mask" in features[0]:
+        doc_ids = [f.pop("attention_mask") for f in features]
+    else:
+        doc_ids = None
+
+    batch = default_data_collator(features)
+    if doc_ids is not None:
+        seq_length = batch["input_ids"].shape[-1]
+        causal_mask = torch.arange(seq_length)[:, None] >= torch.arange(seq_length)
+        doc_mask = [
+            ((torch.tensor(di)[:, None] == torch.tensor(di)) & causal_mask).int()
+            for di in doc_ids
+        ]
+        attention_mask = torch.stack(doc_mask, dim=0)
+        batch["attention_mask"] = attention_mask
+    return batch
+
 
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    parser = HfArgumentParser(
+        (ModelArguments, DataTrainingArguments, TrainingArguments)
+    )
     if len(sys.argv) >= 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args = parser.parse_json_file(
+            json_file=os.path.abspath(sys.argv[1])
+        )
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -272,23 +403,50 @@ def main():
     if len(sys.argv) >= 3:
         model_args.pe_type = sys.argv[2]
         logger.info("Using pe_type: %s", model_args.pe_type)
-    training_args.output_dir = os.path.join(os.environ.get("APP_EXP_DIR", "experiments"), model_args.pe_type)
-    
+
+    if len(sys.argv) >= 4:
+        # Read the model size from the command line
+        model_size = sys.argv[3]
+        model_size_to_t5_config = {
+            "100m": "t5-base",
+            "300m": "t5-large",
+            "1b": "t5-3b",
+        }
+        model_args.config_name = model_size_to_t5_config[model_size.lower()]
+        model_args.tokenizer_name = model_args.config_name
+        logger.info(f"Using model size: {model_size}({model_args.config_name})")
+
+    training_args.output_dir = os.path.join(
+        os.environ.get("APP_EXP_DIR", "experiments"), model_args.pe_type
+    )
+
     # Compute the batch_size_per_device based on world_size
-    # Target batch size is the optimization batch size. 
+    # Target batch size is the optimization batch size.
     # So, we will divide target batch size by the number of processes
     world_size = training_args.world_size
     target_train_batch_size = training_args.per_device_train_batch_size
     target_eval_batch_size = training_args.per_device_eval_batch_size
 
     if world_size > 1:
-        logger.info(f"world_size: {world_size}, target_train_batch_size: {target_train_batch_size}")
-        training_args.per_device_train_batch_size = target_train_batch_size // world_size
-        logger.info("Using per_device_train_batch_size: %s", training_args.per_device_train_batch_size)
+        logger.info(
+            f"world_size: {world_size}, target_train_batch_size: {target_train_batch_size}"
+        )
+        training_args.per_device_train_batch_size = (
+            target_train_batch_size // world_size
+        )
+        logger.info(
+            "Using per_device_train_batch_size: %s",
+            training_args.per_device_train_batch_size,
+        )
 
-        logger.info(f"world_size: {world_size}, target_eval_batch_size: {target_eval_batch_size}")
+        logger.info(
+            f"world_size: {world_size}, target_eval_batch_size: {target_eval_batch_size}"
+        )
         training_args.per_device_eval_batch_size = target_eval_batch_size // world_size
-        logger.info("Using per_device_eval_batch_size: %s", training_args.per_device_eval_batch_size)
+        logger.info(
+            "Using per_device_eval_batch_size: %s",
+            training_args.per_device_eval_batch_size,
+        )
 
     # Log on each process the small summary:
     logger.warning(
@@ -299,14 +457,20 @@ def main():
 
     # Detecting last checkpoint.
     last_checkpoint = None
-    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
+    if (
+        os.path.isdir(training_args.output_dir)
+        and training_args.do_train
+        and not training_args.overwrite_output_dir
+    ):
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
         if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
             raise ValueError(
                 f"Output directory ({training_args.output_dir}) already exists and is not empty. "
                 "Use --overwrite_output_dir to overcome."
             )
-        elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
+        elif (
+            last_checkpoint is not None and training_args.resume_from_checkpoint is None
+        ):
             logger.info(
                 f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
@@ -330,7 +494,7 @@ def main():
             data_args.dataset_name,
             data_args.dataset_config_name,
             cache_dir=model_args.cache_dir,
-            use_auth_token=True if model_args.use_auth_token else None,
+            # use_auth_token=True if model_args.use_auth_token else None,
             streaming=data_args.streaming,
         )
         if "validation" not in raw_datasets.keys():
@@ -339,7 +503,7 @@ def main():
                 data_args.dataset_config_name,
                 split=f"train[:{data_args.validation_split_percentage}%]",
                 cache_dir=model_args.cache_dir,
-                use_auth_token=True if model_args.use_auth_token else None,
+                # use_auth_token=True if model_args.use_auth_token else None,
                 streaming=data_args.streaming,
             )
             raw_datasets["train"] = load_dataset(
@@ -347,7 +511,7 @@ def main():
                 data_args.dataset_config_name,
                 split=f"train[{data_args.validation_split_percentage}%:]",
                 cache_dir=model_args.cache_dir,
-                use_auth_token=True if model_args.use_auth_token else None,
+                # use_auth_token=True if model_args.use_auth_token else None,
                 streaming=data_args.streaming,
             )
 
@@ -368,7 +532,9 @@ def main():
     if model_args.config_name:
         config = AutoConfig.from_pretrained(model_args.config_name, **config_kwargs)
     elif model_args.model_name_or_path:
-        config = AutoConfig.from_pretrained(model_args.model_name_or_path, **config_kwargs)
+        config = AutoConfig.from_pretrained(
+            model_args.model_name_or_path, **config_kwargs
+        )
     else:
         config = CONFIG_MAPPING[model_args.model_type]()
         logger.warning("You are instantiating a new config instance from scratch.")
@@ -382,11 +548,16 @@ def main():
         "use_fast": model_args.use_fast_tokenizer,
         "revision": model_args.model_revision,
         "use_auth_token": True if model_args.use_auth_token else None,
+        "model_max_length": data_args.block_size,
     }
     if model_args.tokenizer_name:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_args.tokenizer_name, **tokenizer_kwargs
+        )
     elif model_args.model_name_or_path:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_args.model_name_or_path, **tokenizer_kwargs
+        )
     else:
         raise ValueError(
             "You are instantiating a new tokenizer from scratch. This is not supported by this script."
@@ -412,11 +583,19 @@ def main():
     # else:
 
     model = modeling.CustomDecoderOnlyT5(
-        config=config, 
-        position_encoding_type=model_args.pe_type
+        config=config, position_encoding_type=model_args.pe_type
     )
-    n_params = sum({p.data_ptr(): p.numel() for p in model.parameters() if p.requires_grad}.values())
-    logger.info(f"Training new model from scratch - Total size={n_params/2**20:.2f}M params")
+    n_params = sum(
+        {
+            p.data_ptr(): p.numel() for p in model.parameters() if p.requires_grad
+        }.values()
+    )
+    logger.info(
+        f"Training new model from scratch - Total size={n_params/2**20:.2f}M params"
+    )
+
+    BOS_TOKEN_ID = tokenizer.additional_special_tokens_ids[-1]
+    logger.info(f"Using BOS token id: {BOS_TOKEN_ID}")
 
     # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
     # on a small vocab and want a smaller embedding size, remove this test.
@@ -433,11 +612,19 @@ def main():
     text_column_name = "text" if "text" in column_names else column_names[0]
 
     # since this will be pickled to avoid _LazyModule error in Hasher force logger loading before tokenize_function
-    tok_logger = transformers.utils.logging.get_logger("transformers.tokenization_utils_base")
+    tok_logger = transformers.utils.logging.get_logger(
+        "transformers.tokenization_utils_base"
+    )
 
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
-            output = tokenizer(examples[text_column_name], add_special_tokens=False, truncation=False)
+            output = tokenizer(
+                examples[text_column_name], add_special_tokens=True, truncation=False
+            )
+            output["input_ids"] = [
+                [BOS_TOKEN_ID] + o for o in output["input_ids"]  # add bos token
+            ]
+            del output["attention_mask"]  # no need for attention mask
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
             tok_logger.warning(
@@ -463,29 +650,57 @@ def main():
                 remove_columns=column_names,
             )
 
+    # add document id to each example
+    tokenized_datasets = tokenized_datasets.map(
+        lambda example, i: {"doc_id": i},
+        with_indices=True,
+        desc="Adding doc id",
+    )
+
     block_size = data_args.block_size
     logger.info(f"Block size: {block_size}")
+
+    block_size = (
+        block_size - 1
+    )  # the bos token will be added to the beginning of each example
 
     # Main data processing function that will concatenate all texts from our dataset and generate chunks of block_size.
     def group_texts(examples):
         # Concatenate all texts.
-        concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
-        total_length = len(concatenated_examples[list(examples.keys())[0]])
+        concatenated_input_ids = list(chain(*examples["input_ids"]))
+        concatenated_doc_ids = list(
+            chain(
+                *[
+                    [doc_id + 1] * len(input_ids)
+                    for doc_id, input_ids in zip(
+                        examples["doc_id"], examples["input_ids"]
+                    )
+                ]
+            )
+        )
+        assert len(concatenated_input_ids) == len(concatenated_doc_ids)
+
+        total_length = len(concatenated_input_ids)
         # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
         # customize this part to your needs.
         if total_length >= block_size:
             total_length = (total_length // block_size) * block_size
         # Split by chunks of max_len.
-        result = {
-            k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-            for k, t in concatenated_examples.items()
-        }
-        result["labels"] = result["input_ids"].copy()
+        input_id_chunks = [
+            concatenated_input_ids[i : i + block_size]
+            for i in range(0, total_length, block_size)
+        ]
+        doc_id_chunks = [
+            concatenated_doc_ids[i : i + block_size]
+            for i in range(0, total_length, block_size)
+        ]
 
-        # We add <unk> token to the beginning of every example 
-        result["input_ids"] = [[tokenizer.unk_token_id] + input_ids for input_ids in result["input_ids"]]
-        result["labels"] = [[tokenizer.unk_token_id] + input_ids for input_ids in result["labels"]]
-        result["attention_mask"] = [[1] * len(input_ids) for input_ids in result["input_ids"]]
+        # Add BOS token to the beginning of every example
+        input_id_chunks = [[BOS_TOKEN_ID] + input_ids for input_ids in input_id_chunks]
+        doc_id_chunks = [[doc_ids[0]] + doc_ids for doc_ids in doc_id_chunks]
+
+        result = {"input_ids": input_id_chunks, "attention_mask": doc_id_chunks}
+        result["labels"] = result["input_ids"].copy()
 
         return result
 
@@ -501,6 +716,7 @@ def main():
             lm_datasets = tokenized_datasets.map(
                 group_texts,
                 batched=True,
+                remove_columns=["doc_id"],
                 num_proc=data_args.preprocessing_num_workers,
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc=f"Grouping texts in chunks of {block_size}",
@@ -510,7 +726,7 @@ def main():
                 group_texts,
                 batched=True,
             )
-    
+
     training_args.do_train = True
     training_args.do_eval = True
 
@@ -555,11 +771,15 @@ def main():
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=tokenizer,
         # Data collator will default to DataCollatorWithPadding, so we change it.
-        data_collator=default_data_collator,
-        compute_metrics=compute_metrics if training_args.do_eval and not is_torch_tpu_available() else None,
+        data_collator=data_collator,
+        # data_collator=default_data_collator,
+        compute_metrics=compute_metrics
+        if training_args.do_eval and not is_torch_tpu_available()
+        else None,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics
         if training_args.do_eval and not is_torch_tpu_available()
         else None,
+        callbacks=[CustomCometCallback()],
     )
 
     # Training
@@ -575,7 +795,9 @@ def main():
         metrics = train_result.metrics
 
         max_train_samples = (
-            data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
+            data_args.max_train_samples
+            if data_args.max_train_samples is not None
+            else len(train_dataset)
         )
         metrics["train_samples"] = min(max_train_samples, len(train_dataset))
 
@@ -589,7 +811,11 @@ def main():
 
         metrics = trainer.evaluate()
 
-        max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
+        max_eval_samples = (
+            data_args.max_eval_samples
+            if data_args.max_eval_samples is not None
+            else len(eval_dataset)
+        )
         metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
         try:
             perplexity = math.exp(metrics["eval_loss"])
