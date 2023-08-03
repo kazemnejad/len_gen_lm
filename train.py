@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from itertools import chain
 from typing import Optional, List, Dict, Any
 
+import comet_ml
 import datasets
 import evaluate
 import torch
@@ -317,11 +318,21 @@ class CustomCometCallback(CometCallback):
                 "experiment_key": experiment_key,
             }
             if comet_mode == "ONLINE":
-                try:
-                    experiment = comet_ml.Experiment(**experiment_kwargs)
-                except comet_ml.exceptions.ExperimentAlreadyUploaded:
+                resume = False
+                if experiment_key is not None:
+                    api = comet_ml.API()
+                    try:
+                        api._get_experiment_metadata(experiment_key)
+                        resume = True
+                    except:
+                        pass
+
+                if resume:
                     experiment = comet_ml.ExistingExperiment(**experiment_kwargs)
                     logger.info("Resuming experiment {}".format(experiment.get_key()))
+                else:
+                    experiment = comet_ml.Experiment(**experiment_kwargs)
+
                 experiment.log_other("Created from", "transformers")
                 logger.info("Automatic Comet.ml online logging enabled")
             elif comet_mode == "OFFLINE":
@@ -630,12 +641,6 @@ def main():
                 [BOS_TOKEN_ID] + o for o in output["input_ids"]  # add bos token
             ]
             del output["attention_mask"]  # no need for attention mask
-        # clm input could be much much longer than block_size
-        if "Token indices sequence length is longer than the" in cl.out:
-            tok_logger.warning(
-                "^^^^^^^^^^^^^^^^ Please ignore the warning above - this long input will be chunked into smaller bits"
-                " before being passed to the model."
-            )
         return output
 
     with training_args.main_process_first(desc="dataset map tokenization"):
