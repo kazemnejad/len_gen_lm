@@ -35,7 +35,7 @@ export COMET_PROJECT_NAME=len-gen-lm
 # Get number of GPUs
 NUM_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
 
-echo "Running training script with $NUM_GPUS GPUs"
+echo "Running inference script with $NUM_GPUS GPUs"
 echo "PE_TYPE: $PE_TYPE"
 echo "MODEL_SIZE: $MODEL_SIZE"
 

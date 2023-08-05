@@ -359,7 +359,7 @@ def data_collator(features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
         seq_length = batch["input_ids"].shape[-1]
         causal_mask = torch.arange(seq_length)[:, None] >= torch.arange(seq_length)
         doc_mask = [
-            ((torch.tensor(di)[:, None] == torch.tensor(di)) & causal_mask).int()
+            ((di[:, None] == di) & causal_mask).int()
             for di in doc_ids
         ]
         attention_mask = torch.stack(doc_mask, dim=0)
