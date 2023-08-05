@@ -412,8 +412,6 @@ def main():
     # So, we will divide target batch size by the number of processes
     world_size = training_args.world_size
 
-    assert world_size == 1, "Only single GPU inference is supported"
-
     # Check if we have pe_type passed in as an argument
     if len(sys.argv) >= 3:
         model_args.pe_type = sys.argv[2]
