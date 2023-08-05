@@ -435,7 +435,8 @@ def main():
         logger.info(f"Using model size: {model_size}({model_args.config_name})")
 
     training_args.output_dir = os.path.join(
-        os.environ.get("APP_EXP_DIR", "experiments"), model_args.pe_type
+        os.environ.get("APP_EXP_DIR", "experiments"),
+        f"{model_args.pe_type}__{model_args.config_name}",
     )
 
     # Compute the batch_size_per_device based on world_size
