@@ -304,17 +304,11 @@ class PerplexityEvaluationDataset(TorchDataset):
             all_input_ids.extend(example["input_ids"])
             all_doc_ids.extend([example["doc_id"]] * len(example["input_ids"]))
 
-        # Remove the last few tokens to make sure that the length is a multiple of block_size
-        all_input_ids = all_input_ids[
-            : ((len(all_input_ids) // block_size) * block_size)
-        ]
-        all_doc_ids = all_doc_ids[: ((len(all_doc_ids) // block_size) * block_size)]
-
         self.all_input_ids = torch.tensor(all_input_ids, dtype=torch.long)
         self.all_doc_ids = torch.tensor(all_doc_ids, dtype=torch.long)
         assert self.all_input_ids.shape == self.all_doc_ids.shape
 
-        self.dataset_len = len(range(0, self.all_input_ids.shape[-1], stride))
+        self.dataset_len = len(range(0, self.all_input_ids.shape[-1] - block_size + 1, stride))
 
         del all_input_ids
         del all_doc_ids
@@ -324,9 +318,12 @@ class PerplexityEvaluationDataset(TorchDataset):
 
     def __getitem__(self, i):
         begin_loc = i * self.stride
-        end_loc = min(begin_loc + self.block_size, self.all_input_ids.shape[-1])
+        end_loc = begin_loc + self.block_size
         input_ids = self.all_input_ids[begin_loc:end_loc]
         doc_ids = self.all_doc_ids[begin_loc:end_loc]
+
+        assert input_ids.shape == doc_ids.shape
+        assert input_ids.shape[-1] == self.block_size
 
         # Prepend the bos_token_id
         input_ids = torch.cat([torch.tensor([self.bos_token_id]), input_ids], dim=0)
@@ -474,6 +471,8 @@ def main():
 
     final_model_dir = os.path.join(training_args.output_dir, "final-model")
 
+    # tokenizer = AutoTokenizer.from_pretrained("t5-large")
+
     tokenizer = AutoTokenizer.from_pretrained(final_model_dir, use_fast=True)
     config = AutoConfig.from_pretrained(final_model_dir)
 
@@ -563,7 +562,7 @@ def main():
                 result = json.load(f)
                 if len(result) > 0:
                     if trainer.is_world_process_zero():
-                        logger.info("Evaluating block size: %s", blk_sz)
+                        logger.info("Skipping block size: %s", blk_sz)
                     continue
         except Exception:
             pass
