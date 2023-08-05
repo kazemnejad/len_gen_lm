@@ -559,8 +559,9 @@ def main():
         result_file = results_dir / f"ppl_{blk_sz}.json"
         try:
             with result_file.open() as f:
-                result = json.load(f)
-                if len(result) > 0:
+                metrics = json.load(f)
+                if len(metrics) > 0:
+                    trainer.log_metrics("eval", metrics)
                     if trainer.is_world_process_zero():
                         logger.info("Skipping block size: %s", blk_sz)
                     continue
@@ -591,7 +592,7 @@ def main():
 
         if trainer.is_world_process_zero():
             with result_file.open("w") as f:
-                json.dump(result, f, indent=4, sort_keys=True)
+                json.dump(metrics, f, indent=4, sort_keys=True)
 
 
 if __name__ == "__main__":
