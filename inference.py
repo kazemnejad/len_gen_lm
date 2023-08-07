@@ -407,11 +407,6 @@ def main():
         os.environ.get("APP_EXP_DIR", "experiments"), model_args.pe_type
     )
 
-    # Compute the batch_size_per_device based on world_size
-    # Target batch size is the optimization batch size.
-    # So, we will divide target batch size by the number of processes
-    world_size = training_args.world_size
-
     # Check if we have pe_type passed in as an argument
     if len(sys.argv) >= 3:
         model_args.pe_type = sys.argv[2]

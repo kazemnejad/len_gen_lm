@@ -16,6 +16,8 @@ from transformers.modeling_outputs import (
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
+from transformers.modeling_utils import ModuleUtilsMixin
+
 from modeling_t5 import (
     T5Stack,
     T5PreTrainedModel,
@@ -40,6 +42,7 @@ POSITION_ENCODING_ABS_SINUSOID = "abs_sinusoid"
 POSITION_ENCODING_ALiBi = "alibi"
 POSITION_ENCODING_ALiBi_LEARNED = "alibi_learned"
 POSITION_ENCODING_NONE = "none"
+POSITION_ENCODING_NONE_WINDOW = "none_window"
 
 
 def fixed_pos_embedding(x, seq_dim=1, seq_len=None):
@@ -720,6 +723,8 @@ class CustomT5Stack(T5Stack):
         self.device_map = None
         self.gradient_checkpointing = False
 
+        self.window_size = 80  # only used for none_windowed
+
     def _alibi_prepare_attn_mask(
         self,
         attention_mask: torch.Tensor,
@@ -912,6 +917,18 @@ class CustomT5Stack(T5Stack):
         if past_key_values is None:
             past_key_values = [None] * len(self.block)
 
+        if self.position_encoding_type == POSITION_ENCODING_NONE_WINDOW:
+            indices = torch.arange(seq_length, device=inputs_embeds.device)
+            causal_mask = indices[:, None] >= indices
+            window_mask = (indices.unsqueeze(0) - indices.unsqueeze(0).T).abs().less(self.window_size)
+            causal_mask = causal_mask & window_mask
+            attention_mask = causal_mask.int()
+
+            # Repeat the mask for each sample in the batch
+            attention_mask = attention_mask[None, :, :].expand(
+                batch_size, seq_length, seq_length
+            )
+
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
         extended_attention_mask = self.get_extended_attention_mask(
@@ -922,7 +939,9 @@ class CustomT5Stack(T5Stack):
             num_heads = self.config.num_heads
             if len(attention_mask.shape) == 3:
                 # We need to make a default attention mask
-                alibi_attention_mask = torch.ones(batch_size, mask_seq_length).to(inputs_embeds.device)
+                alibi_attention_mask = torch.ones(batch_size, mask_seq_length).to(
+                    inputs_embeds.device
+                )
             else:
                 alibi_attention_mask = attention_mask
 
@@ -1154,6 +1173,7 @@ class CustomDecoderOnlyT5(T5PreTrainedModel):
                 POSITION_ENCODING_ROTARY,
                 POSITION_ENCODING_ROTARY_NEW,
                 POSITION_ENCODING_NONE,
+                POSITION_ENCODING_NONE_WINDOW,
             ]:
                 raise ValueError(
                     f"Invalid position_encoding_type: {position_encoding_type}"
