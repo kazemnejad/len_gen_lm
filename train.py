@@ -321,6 +321,8 @@ class CustomCometCallback(CometCallback):
             if comet_mode == "ONLINE":
                 resume = False
                 if experiment_key is not None:
+                    experiment_key = experiment_key.replace("_", "")
+                    experiment_kwargs["experiment_key"] = experiment_key
                     api = comet_ml.API()
                     try:
                         api._get_experiment_metadata(experiment_key)
