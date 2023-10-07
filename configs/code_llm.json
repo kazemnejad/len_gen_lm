@@ -24,7 +24,7 @@
     "eval_steps": 1000,
     "save_steps": 1000,
     "logging_steps": 20,
-    "save_total_limit": 10,
+    "save_total_limit": 15,
     "report_to": "wandb",
     "seed": 42,
     "bf16": true,

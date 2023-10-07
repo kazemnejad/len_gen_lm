@@ -410,13 +410,13 @@ def main():
         if "validation" not in raw_datasets:
             eval_dataset = raw_datasets["test"]
             # Take 5 percent of the test set as validation set
-            eval_dataset = eval_dataset.select(range(int(0.5 * len(eval_dataset))))
+            eval_dataset = eval_dataset.select(range(int(0.05 * len(eval_dataset))))
             logger.info(
-                f"Splitting test set into 50% validation set and 50% test set. "
-                f"Using 50% test set as validation set. Length of validation set: {len(eval_dataset)}"
+                f"Using 5 percent of the test set as validation set: {len(eval_dataset)}"
             )
+        else:
+            eval_dataset = raw_datasets["validation"]
 
-        eval_dataset = raw_datasets["test"]
         if data_args.max_eval_samples is not None:
             max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
             eval_dataset = eval_dataset.select(range(max_eval_samples))
