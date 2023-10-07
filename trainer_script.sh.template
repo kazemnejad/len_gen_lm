@@ -38,7 +38,7 @@ echo "Running training script with $NUM_GPUS GPUs"
 echo "PE_TYPE: $PE_TYPE"
 
 # Use torchrun to run the training script on multiple GPUs
-deepspeed \
+deepspeed --no_local_rank \
     train.py \
     configs/code_llm.json \
     $PE_TYPE

@@ -13,7 +13,7 @@
     "dataloader_drop_last": true,
     "deepspeed": "deepspeed_configs/stage_0.json",
     "torch_compile": true,
-    "num_epochs": 1,
+    "num_train_epochs": 1,
     "learning_rate": 2e-4,
     "weight_decay": 0.1,
     "eval_steps": 1000,
