@@ -1179,6 +1179,8 @@ class CustomDecoderOnlyT5(T5PreTrainedModel):
                     f"Invalid position_encoding_type: {position_encoding_type}"
                 )
             config.position_encoding_type = position_encoding_type
+        else:
+            raise ValueError("position_encoding_type must be specified")
 
         self.main_input_name = "input_ids"
 

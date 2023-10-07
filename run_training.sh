@@ -2,7 +2,7 @@
 
 # APP_EXP_DIR should be a shared network storage. We save checkpoints and logs here.
 export APP_EXP_DIR=/raid/len_gen_lm_exps
-export APP_SHARED_STORAGE_PATH=~/
+export APP_SHARED_STORAGE_PATH=/datasets/
 export APP_CONFIG_PATH=configs/code_llm.json
 
 # TRANSFORMERS_CACHE and HF_DATASETS_CACHE
@@ -14,10 +14,6 @@ mkdir -p $APP_EXP_DIR
 mkdir -p $HF_HOME
 mkdir -p $TRANSFORMERS_CACHE
 mkdir -p $HF_DATASETS_CACHE
-
-# Sync datasets from network storage to local storage
-rsync -avzh /datasets/santacoder_data_tokenized_1024/ $APP_SHARED_STORAGE_PATH
-rsync -avzh /datasets/santacoder_tokenizer/ $APP_SHARED_STORAGE_PATH
 
 # Sync checkpoints from network storage to local storage
 rsync -avzh /scratch/len_gen_lm_exps $APP_EXP_DIR
@@ -37,19 +33,21 @@ export WANDB_NAME="SantaCoder 1B $PE_TYPE"
 export WANDB_RUN_ID="santacoder-1b-${PE_TYPE}"
 export WANDB_RESUME="allow"
 
+export OMP_NUM_THREADS=100
+
 # Get number of GPUs
 NUM_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+
+# Run sync_checkpoints_to_network.sh in the background
+chmod +x sync_checkpoints_to_network.sh
+./sync_checkpoints_to_network.sh &
 
 echo "Running training script with $NUM_GPUS GPUs"
 echo "PE_TYPE: $PE_TYPE"
 
-chmod +x sync_checkpoints_to_network.sh
-
-# Run sync_checkpoints_to_network.sh in the background
-./sync_checkpoints_to_network.sh &
-
-# Use torchrun to run the training script on multiple GPUs
-deepspeed --no_local_rank \
-    train.py \
+torchrun \
+    --nnodes=1 \
+    --nproc_per_node=$NUM_GPUS \
+    train_llm.py \
     configs/code_llm.json \
     $PE_TYPE

@@ -25,14 +25,12 @@ import logging
 import math
 import os
 import sys
-import uuid
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 
-import evaluate
+import datasets
 import torch
 import transformers
-import datasets
 from datasets import load_from_disk
 from transformers import (
     MODEL_FOR_CAUSAL_LM_MAPPING,
@@ -42,7 +40,6 @@ from transformers import (
     Trainer,
     TrainingArguments,
     default_data_collator,
-    is_torch_tpu_available,
     set_seed,
 )
 from transformers.trainer_utils import get_last_checkpoint
@@ -291,7 +288,6 @@ def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
-
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
     )
@@ -322,16 +318,17 @@ def main():
     transformers.utils.logging.enable_explicit_format()
 
     # Check if we have pe_type passed in as an argument
-    if len(sys.argv) >= 3:
-        model_args.pe_type = sys.argv[2]
-        logger.info("Using pe_type: %s", model_args.pe_type)
+    model_args.pe_type = sys.argv[2]
+    logger.info("Using pe_type: %s", model_args.pe_type)
+
+    assert model_args.pe_type in ["none", "alibi", "rotary"]
 
     model_size = "1b"
-    logger.info(f"Using model size: {model_size}({model_args.config_name})")
+    logger.info(f"Using model size: {model_size}")
 
     training_args.output_dir = os.path.join(
         os.environ.get("APP_EXP_DIR", "experiments"),
-        f"{model_args.pe_type}__{model_args.config_name}",
+        f"1b__{model_args.pe_type}",
     )
 
     shared_storage_path = os.environ["APP_SHARED_STORAGE_PATH"]
@@ -376,13 +373,17 @@ def main():
     #
     # In distributed training, the load_dataset function guarantee that only one local process can concurrently
     # download the dataset.
-    raw_datasets = load_from_disk(os.path.join(shared_storage_path, data_args.dataset_name))
+    raw_datasets = load_from_disk(
+        os.path.join(shared_storage_path, data_args.dataset_name)
+    )
+    logger.info(f"Loaded dataset {raw_datasets}")
     config = AutoConfig.from_pretrained(
         os.path.join("model_configs", model_size),
     )
     tokenizer = AutoTokenizer.from_pretrained(
         os.path.join(shared_storage_path, model_args.tokenizer_name)
     )
+    logger.info(f"Loaded tokenizer {tokenizer}")
     model = modeling.CustomDecoderOnlyT5(
         config=config, position_encoding_type=model_args.pe_type
     )
@@ -397,9 +398,6 @@ def main():
         f"Training new model from scratch - Total size={n_params/2**20:.2f}M params"
     )
 
-    training_args.do_train = True
-    training_args.do_eval = True
-
     if training_args.do_train:
         if "train" not in raw_datasets:
             raise ValueError("--do_train requires a train dataset")
@@ -409,29 +407,19 @@ def main():
             train_dataset = train_dataset.select(range(max_train_samples))
 
     if training_args.do_eval:
-        if "test" not in raw_datasets:
-            raise ValueError("--do_eval requires a validation dataset")
+        if "validation" not in raw_datasets:
+            eval_dataset = raw_datasets["test"]
+            # Take 5 percent of the test set as validation set
+            eval_dataset = eval_dataset.select(range(int(0.5 * len(eval_dataset))))
+            logger.info(
+                f"Splitting test set into 50% validation set and 50% test set. "
+                f"Using 50% test set as validation set. Length of validation set: {len(eval_dataset)}"
+            )
+
         eval_dataset = raw_datasets["test"]
         if data_args.max_eval_samples is not None:
             max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
             eval_dataset = eval_dataset.select(range(max_eval_samples))
-
-        def preprocess_logits_for_metrics(logits, labels):
-            if isinstance(logits, tuple):
-                # Depending on the model and config, logits may contain extra tensors,
-                # like past_key_values, but logits always come first
-                logits = logits[0]
-            return logits.argmax(dim=-1)
-
-        metric = evaluate.load("accuracy", experiment_id=str(uuid.uuid4()))
-
-        def compute_metrics(eval_preds):
-            preds, labels = eval_preds
-            # preds have the same shape as the labels, after the argmax(-1) has been calculated
-            # by preprocess_logits_for_metrics but we need to shift the labels
-            labels = labels[:, 1:].reshape(-1)
-            preds = preds[:, :-1].reshape(-1)
-            return metric.compute(predictions=preds, references=labels)
 
     # Initialize our Trainer
     trainer = Trainer(
@@ -440,15 +428,7 @@ def main():
         train_dataset=train_dataset,
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=tokenizer,
-        # Data collator will default to DataCollatorWithPadding, so we change it.
         data_collator=data_collator,
-        # data_collator=default_data_collator,
-        compute_metrics=compute_metrics
-        if training_args.do_eval and not is_torch_tpu_available()
-        else None,
-        preprocess_logits_for_metrics=preprocess_logits_for_metrics
-        if training_args.do_eval and not is_torch_tpu_available()
-        else None,
     )
 
     # Training
