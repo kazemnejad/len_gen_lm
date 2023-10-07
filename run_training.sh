@@ -50,4 +50,4 @@ torchrun \
     --nproc_per_node=$NUM_GPUS \
     train_llm.py \
     configs/code_llm.json \
-    $PE_TYPE >> "/raid/$APP_EXP_DIR/$PE_TYPE.log" 2>&1
+    $PE_TYPE >> "$APP_EXP_DIR/$PE_TYPE.log" 2>&1
