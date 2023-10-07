@@ -1,15 +1,26 @@
 #!/bin/bash
 
-chmod a+x ./env.sh
-source ./env.sh
-
-export APP_EXP_DIR=$PROJECT_DIR/exps
-mkdir -p $APP_EXP_DIR
+# APP_EXP_DIR should be a shared network storage. We save checkpoints and logs here.
+export APP_EXP_DIR=/raid/len_gen_lm_exps
+export APP_SHARED_STORAGE_PATH=~/
+export APP_CONFIG_PATH=configs/code_llm.json
 
 # TRANSFORMERS_CACHE and HF_DATASETS_CACHE
-#export TRANSFORMERS_CACHE=$PROJECT_DIR/transformers_cache
-#export HF_DATASETS_CACHE=$PROJECT_DIR/datasets_cache
-export HF_HOME=$PROJECT_DIR/hf_home
+export HF_HOME=/raid/hf_home
+export TRANSFORMERS_CACHE=/raid/.cache/huggingface/transformers
+export HF_DATASETS_CACHE=/raid/.cache/huggingface/datasets
+
+mkdir -p $APP_EXP_DIR
+mkdir -p $HF_HOME
+mkdir -p $TRANSFORMERS_CACHE
+mkdir -p $HF_DATASETS_CACHE
+
+# Sync datasets from network storage to local storage
+rsync -avzh /datasets/santacoder_data_tokenized_1024/ $APP_SHARED_STORAGE_PATH
+rsync -avzh /datasets/santacoder_tokenizer/ $APP_SHARED_STORAGE_PATH
+
+# Sync checkpoints from network storage to local storage
+rsync -avzh /scratch/len_gen_lm_exps $APP_EXP_DIR
 
 # Read pe_type from command line
 PE_TYPE=$1
@@ -19,31 +30,26 @@ then
     echo "PE_TYPE is empty. Please pass in PE_TYPE as the first argument."
     exit 1
 fi
-# Read model_size from command line
-MODEL_SIZE=$2
-# If model_size is not passed in, use default
-if [ -z "$MODEL_SIZE" ]
-then
-    MODEL_SIZE="100m"
-fi
 
 # Set Logger values
-export CUSTOM_EXPERIMENT_KEY="pppprefixt5deconlywikitext103${PE_TYPE}${MODEL_SIZE}"
-export CUSTOM_EXPERIMENT_NAME="WikiText103 $MODEL_SIZE $PE_TYPE"
-export COMET_PROJECT_NAME=len-gen-lm
+export WANDB_PROJECT="santacoder"
+export WANDB_NAME="SantaCoder 1B $PE_TYPE"
+export WANDB_RUN_ID="santacoder-1b-${PE_TYPE}"
+export WANDB_RESUME="allow"
 
 # Get number of GPUs
 NUM_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
 
 echo "Running training script with $NUM_GPUS GPUs"
 echo "PE_TYPE: $PE_TYPE"
-echo "MODEL_SIZE: $MODEL_SIZE"
+
+chmod +x sync_checkpoints_to_network.sh
+
+# Run sync_checkpoints_to_network.sh in the background
+./sync_checkpoints_to_network.sh &
 
 # Use torchrun to run the training script on multiple GPUs
-torchrun --standalone \
-    --nnodes=1 \
-    --nproc_per_node=$NUM_GPUS \
+deepspeed --no_local_rank \
     train.py \
-    configs/main.json \
-    $PE_TYPE \
-    $MODEL_SIZE
+    configs/code_llm.json \
+    $PE_TYPE

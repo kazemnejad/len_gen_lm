@@ -379,7 +379,7 @@ def main():
     # download the dataset.
     raw_datasets = load_from_disk(os.path.join(shared_storage_path, data_args.dataset_name))
     config = AutoConfig.from_pretrained(
-        os.path.join(shared_storage_path, model_size),
+        os.path.join("model_configs", model_size),
     )
     tokenizer = AutoTokenizer.from_pretrained(
         os.path.join(shared_storage_path, model_args.tokenizer_name)
