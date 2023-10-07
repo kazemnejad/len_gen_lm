@@ -3,6 +3,7 @@
 # APP_EXP_DIR should be a shared network storage. We save checkpoints and logs here.
 export APP_EXP_DIR=/raid/len_gen_lm_exps
 export APP_SHARED_STORAGE_PATH=~/
+export APP_CONFIG_PATH=~/configs/code_llm.json
 
 # TRANSFORMERS_CACHE and HF_DATASETS_CACHE
 export HF_HOME=/raid/hf_home
