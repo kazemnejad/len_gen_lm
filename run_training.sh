@@ -30,7 +30,7 @@ fi
 # Set Logger values
 export WANDB_PROJECT="santacoder"
 export WANDB_NAME="SantaCoder 1B $PE_TYPE"
-export WANDB_RUN_ID="santacoder-1b-${PE_TYPE}"
+export WANDB_RUN_ID="final-santacoder-1b-${PE_TYPE}"
 export WANDB_RESUME="allow"
 
 export OMP_NUM_THREADS=100
