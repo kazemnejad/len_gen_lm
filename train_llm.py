@@ -327,7 +327,6 @@ def main():
         logger.info("Using pe_type: %s", model_args.pe_type)
 
     model_size = "1b"
-    model_args.tokenizer_name = model_args.config_name
     logger.info(f"Using model size: {model_size}({model_args.config_name})")
 
     training_args.output_dir = os.path.join(
