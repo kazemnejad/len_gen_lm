@@ -16,7 +16,7 @@ mkdir -p $TRANSFORMERS_CACHE
 mkdir -p $HF_DATASETS_CACHE
 
 # Sync checkpoints from network storage to local storage
-rsync -avzh /scratch/len_gen_lm_exps $APP_EXP_DIR
+rsync -avzh /scratch/len_gen_lm_exps /raid/
 
 # Read pe_type from command line
 PE_TYPE=$1
