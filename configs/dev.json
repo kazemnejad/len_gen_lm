@@ -6,7 +6,7 @@
     "evaluation_strategy": "steps",
     "save_strategy": "steps",
     "logging_strategy": "steps",
-    "block_size": 20,
+    "block_size": 512,
     "preprocessing_num_workers": 1,
     "per_device_train_batch_size": 32,
     "per_device_eval_batch_size": 32,

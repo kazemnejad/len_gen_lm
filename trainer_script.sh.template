@@ -1,24 +1,18 @@
 #!/bin/bash
 
-#-----------------------EDIT THIS-----------------------#
-# Set up environment variables for the experiments. 
-# Can change based on the cluster setup.
-
 # APP_EXP_DIR should be a shared network storage. We save checkpoints and logs here.
-export APP_EXP_DIR=~/repos/len_gen_lm_exps
+export APP_EXP_DIR=/raid/len_gen_lm_exps
+export APP_SHARED_STORAGE_PATH=~/
 
 # TRANSFORMERS_CACHE and HF_DATASETS_CACHE
-export TRANSFORMERS_CACHE=~/.cache/huggingface/transformers
-export HF_DATASETS_CACHE=~/.cache/huggingface/datasets
+export HF_HOME=/raid/hf_home
+export TRANSFORMERS_CACHE=/raid/.cache/huggingface/transformers
+export HF_DATASETS_CACHE=/raid/.cache/huggingface/datasets
 
-# Go to comet.ml and get your API token
-export COMET_API_KEY=...
-export COMET_MODE=ONLINE
-# or export COMET_MODE=DISABLED to disable logging to comet.ml
-
-#-----------------------DONE EDIT-----------------------#
-
-
+mkdir -p $APP_EXP_DIR
+mkdir -p $HF_HOME
+mkdir -p $TRANSFORMERS_CACHE
+mkdir -p $HF_DATASETS_CACHE
 
 
 # Read pe_type from command line
@@ -29,31 +23,21 @@ then
     echo "PE_TYPE is empty. Please pass in PE_TYPE as the first argument."
     exit 1
 fi
-# Read model_size from command line
-MODEL_SIZE=$2
-# If model_size is not passed in, use default
-if [ -z "$MODEL_SIZE" ]
-then
-    MODEL_SIZE="100m"
-fi
 
 # Set Logger values
-export CUSTOM_EXPERIMENT_KEY="pppprefixt5deconlywikitext103${PE_TYPE}${MODEL_SIZE}"
-export CUSTOM_EXPERIMENT_NAME="WikiText103 $MODEL_SIZE $PE_TYPE"
-export COMET_PROJECT_NAME=len-gen-lm
+export WANDB_PROJECT="santacoder"
+export WANDB_NAME="SantaCoder 1B $PE_TYPE"
+export WANDB_RUN_ID="santacoder-1b-${PE_TYPE}"
+export WANDB_RESUME="allow"
 
 # Get number of GPUs
 NUM_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
 
 echo "Running training script with $NUM_GPUS GPUs"
 echo "PE_TYPE: $PE_TYPE"
-echo "MODEL_SIZE: $MODEL_SIZE"
 
 # Use torchrun to run the training script on multiple GPUs
-torchrun --standalone \
-    --nnodes=1 \
-    --nproc_per_node=$NUM_GPUS \
+deepspeed \
     train.py \
-    configs/main.json \
-    $PE_TYPE \
-    $MODEL_SIZE
+    configs/code_llm.json \
+    $PE_TYPE
