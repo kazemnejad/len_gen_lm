@@ -26,7 +26,7 @@ then
     exit 1
 fi
 
-export APP_EXP_DIR=/scratch_$PE_TYPE/len_gen_lm_exps
+export APP_EXP_DIR="/scratch_${PE_TYPE}/len_gen_lm_exps"
 
 # Set Logger values
 export WANDB_PROJECT="santacoder"
@@ -38,10 +38,6 @@ export OMP_NUM_THREADS=100
 
 # Get number of GPUs
 NUM_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
-
-# Run sync_checkpoints_to_network.sh in the background
-chmod +x sync_checkpoints_to_network.sh
-./sync_checkpoints_to_network.sh &
 
 echo "Running inference script with $NUM_GPUS GPUs"
 echo "PE_TYPE: $PE_TYPE"
