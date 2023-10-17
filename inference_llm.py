@@ -466,10 +466,10 @@ def main():
             1200: 20,
             1400: 20,
             1600: 20,
-            1800: 20,
+            1800: 18,
             2048: 16,
             2304: 16,
-            2560: 16,
+            2560: 12,
         }[block_size]
 
     results_dir = Path(shared_storage_path) / "perplexity_results_on_test"
