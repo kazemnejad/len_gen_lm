@@ -443,15 +443,13 @@ def main():
         results_dir.mkdir(parents=True, exist_ok=True)
 
     for blk_sz in tqdm(block_sizes):
-        result_file = results_dir / f"ppl_{blk_sz}.json"
+        result_file = results_dir / f"pred_dataset_{blk_sz}"
         try:
-            with result_file.open() as f:
-                metrics = json.load(f)
-                if len(metrics) > 0:
-                    trainer.log_metrics("eval", metrics)
-                    if trainer.is_world_process_zero():
-                        logger.info("Skipping block size: %s", blk_sz)
-                    continue
+            ds = load_from_disk(result_file)
+            if "ppl" in ds.column_names and "losses" in ds.column_names:
+                if trainer.is_world_process_zero():
+                    logger.info("Skipping block size: %s", blk_sz)
+                continue
         except Exception:
             pass
 
