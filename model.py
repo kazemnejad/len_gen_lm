@@ -17,6 +17,7 @@ from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from transformers.modeling_utils import ModuleUtilsMixin
+from transformers.utils import ModelOutput
 
 from modeling_t5 import (
     T5Stack,
@@ -31,6 +32,43 @@ from modeling_t5 import (
 from transformers.utils.model_parallel_utils import get_device_map, assert_device_map
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CausalLMOutputWithPastAndLoss(ModelOutput):
+    """
+    Base class for causal language model (or autoregressive) outputs.
+
+    Args:
+        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+            Language modeling loss (for next-token prediction).
+        logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+            Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
+        past_key_values (`tuple(tuple(torch.FloatTensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(torch.FloatTensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+            `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+
+            Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
+            `past_key_values` input) to speed up sequential decoding.
+        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
+            heads.
+    """
+
+    loss: Optional[torch.FloatTensor] = None
+    logits: torch.FloatTensor = None
+    past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+    attentions: Optional[Tuple[torch.FloatTensor]] = None
+    non_reduced_loss: Optional[torch.FloatTensor] = None
 
 POSITION_ENCODING_REL_T5_BIAS = "t5_relative_bias"
 POSITION_ENCODING_REL_TRANSFORMER_XL = "transformer_xl_relative_encoding"
@@ -1153,6 +1191,7 @@ class CustomDecoderOnlyT5(T5PreTrainedModel):
         self,
         config=None,
         position_encoding_type: Optional[str] = None,
+        output_non_reduced_loss: bool = False,
         tokenizer=None,
         **kwargs,
     ):
@@ -1182,6 +1221,7 @@ class CustomDecoderOnlyT5(T5PreTrainedModel):
         else:
             raise ValueError("position_encoding_type must be specified")
 
+        self.output_non_reduced_loss = output_non_reduced_loss
         self.main_input_name = "input_ids"
 
         super().__init__(config)
@@ -1331,6 +1371,7 @@ class CustomDecoderOnlyT5(T5PreTrainedModel):
         lm_logits = self.lm_head(hidden_states)
 
         loss = None
+        non_reduced_loss = None
         if labels is not None:
             # Compute loss in fp32 to match with mesh-tf version
             # https://github.com/EleutherAI/gpt-neo/blob/89ce74164da2fb16179106f54e2269b5da8db333/models/gpt2/gpt2.py#L179
@@ -1348,16 +1389,28 @@ class CustomDecoderOnlyT5(T5PreTrainedModel):
             lm_logits = lm_logits.to(hidden_states.dtype)
             loss = loss.to(hidden_states.dtype)
 
+            if self.output_non_reduced_loss:
+                loss_fct = CrossEntropyLoss(reduction="none")
+                non_reduced_loss = loss_fct(
+                    shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
+                )
+
+                # Reshape to [batch_size, seq_length - 1]
+                non_reduced_loss = non_reduced_loss.view(
+                    shift_labels.shape[0], shift_labels.shape[1]
+                ).view(-1, 1)
+
         if not return_dict:
             output = (lm_logits,) + transformer_outputs[1:]
             return ((loss,) + output) if loss is not None else output
 
-        return CausalLMOutputWithPast(
+        return CausalLMOutputWithPastAndLoss(
             loss=loss,
             logits=lm_logits,
             past_key_values=transformer_outputs.past_key_values,
             hidden_states=transformer_outputs.hidden_states,
             attentions=transformer_outputs.attentions,
+            non_reduced_loss=non_reduced_loss,
         )
 
     @staticmethod
