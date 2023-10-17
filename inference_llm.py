@@ -419,7 +419,7 @@ def main():
         )
         test_dataset = test_dataset.shuffle(seed=42)
         test_dataset = test_dataset.flatten_indices(num_proc=12)
-        test_dataset = test_dataset.select(range(3000))
+        test_dataset = test_dataset.select(range(1500))
 
     logger.info(f"Loaded dataset {test_dataset}")
     logger.info(f"Loaded tokenizer {tokenizer}")
@@ -442,13 +442,14 @@ def main():
         data_collator=default_data_collator,
         compute_metrics=None,
     )
+    trainer.log({"started": 1})
 
     # Increase batch size by 128
     #  32,   32, 32,   16,  16, 16
     block_sizes = [
         512,
         640,
-        750,
+        760,
         878,
         1024,
         1200,
