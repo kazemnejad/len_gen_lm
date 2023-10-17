@@ -1398,7 +1398,7 @@ class CustomDecoderOnlyT5(T5PreTrainedModel):
                 # Reshape to [batch_size, seq_length - 1]
                 non_reduced_loss = non_reduced_loss.view(
                     shift_labels.shape[0], shift_labels.shape[1]
-                ).view(-1, 1)
+                )[:,-1].view(-1, 1)
 
         if not return_dict:
             output = (lm_logits,) + transformer_outputs[1:]
