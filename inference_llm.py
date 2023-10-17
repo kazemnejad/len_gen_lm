@@ -19,12 +19,10 @@ Fine-tuning the library models for causal language modeling (GPT, GPT-2, CTRL, .
 Here is the full list of checkpoints on the hub that can be fine-tuned by this script:
 https://huggingface.co/models?filter=text-generation
 """
-import json
 
 # You can also adapt this script on your own causal language modeling task. Pointers for this are left as comments.
 
 import logging
-import math
 import os
 import sys
 from dataclasses import dataclass, field
@@ -39,7 +37,6 @@ from datasets import load_from_disk, Dataset
 from tqdm import tqdm
 from transformers import (
     MODEL_FOR_CAUSAL_LM_MAPPING,
-    AutoConfig,
     AutoTokenizer,
     HfArgumentParser,
     Trainer,
@@ -47,7 +44,6 @@ from transformers import (
     default_data_collator,
     set_seed,
 )
-from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils.versions import require_version
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
@@ -325,7 +321,7 @@ def create_prediction_dataset(
                 output_dict["input_ids_len"].append(len(sample_input_ids))
                 output_dict["length_bucket"].append(examples["length_bucket"][i])
                 output_dict["doc_id"].append(doc_id)
-                output_dict["prediction_point"].append(-1 - j)
+                output_dict["prediction_point"].append(j)
 
         return output_dict
 
@@ -444,8 +440,6 @@ def main():
     )
     trainer.log({"started": 1})
 
-    # Increase batch size by 128
-    #  32,   32, 32,   16,  16, 16
     block_sizes = [
         512,
         640,
@@ -466,7 +460,7 @@ def main():
         return {
             512: 64,
             640: 52,
-            750: 42,
+            760: 42,
             878: 32,
             1024: 26,
             1200: 20,
@@ -503,7 +497,7 @@ def main():
                 test_dataset,
                 block_size=blk_sz,
                 bos_token_id=tokenizer.bos_token_id,
-                num_proc=64,
+                num_proc=32,
             )
 
         if trainer.is_world_process_zero():
