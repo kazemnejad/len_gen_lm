@@ -270,27 +270,12 @@ class DataTrainingArguments:
 import model as modeling
 
 
-def data_collator(features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
-    if "attention_mask" in features[0]:
-        doc_ids = [f.pop("attention_mask") for f in features]
-    else:
-        doc_ids = None
-
-    batch = default_data_collator(features)
-    if doc_ids is not None:
-        seq_length = batch["input_ids"].shape[-1]
-        causal_mask = torch.arange(seq_length)[:, None] >= torch.arange(seq_length)
-        doc_mask = [
-            ((torch.tensor(di)[:, None] == torch.tensor(di)) & causal_mask).int()
-            for di in doc_ids
-        ]
-        attention_mask = torch.stack(doc_mask, dim=0)
-        batch["attention_mask"] = attention_mask
-    return batch
-
-
 def create_prediction_dataset(
-    orig_dataset: Dataset, block_size: int, bos_token_id: int, num_proc: int
+    orig_dataset: Dataset,
+    block_size: int,
+    bos_token_id: int,
+    num_proc: int,
+    max_inference_toks: int = 100,
 ):
     block_size_minus_1 = block_size - 1
 
@@ -304,27 +289,39 @@ def create_prediction_dataset(
             "length_bucket": [],
             "doc_id": [],
             "prediction_point": [],
+            "labels": [],
         }
         for i in range(num_examples):
             input_ids = examples["input_ids"][i]
-            attention_mask = examples["attention_mask"][i]
             doc_id = examples["doc_id"][i]
 
             input_ids_len = len(input_ids)
 
-            if input_ids_len < block_size_minus_1:
+            if (
+                examples["length_bucket"][i] < block_size_minus_1
+                and examples["length_bucket"][i] < 4500
+            ):
                 continue
 
-            for j in range(input_ids_len - block_size_minus_1 + 1):
-                sample_input_ids = [bos_token_id] + input_ids[
-                    j : j + block_size_minus_1
-                ]
-                sample_labels = [-100] * (len(sample_input_ids) - 1) + [
-                    sample_input_ids[-1]
-                ]
+            # for j in range(input_ids_len - block_size_minus_1 + 1):
+            for j in range(-1, -max_inference_toks - 1, -1):
+                start_idx = j - block_size_minus_1
+                end_idx = j + 1
+                if start_idx < -input_ids_len:
+                    break
+
+                if end_idx == 0:
+                    sample_input_ids = input_ids[start_idx:]
+                else:
+                    sample_input_ids = input_ids[start_idx:end_idx]
+
+                sample_input_ids = np.array([bos_token_id] + sample_input_ids)
+                sample_labels = np.array(
+                    [-100] * (len(sample_input_ids) - 1) + [sample_input_ids[-1]]
+                )
                 output_dict["input_ids"].append(sample_input_ids)
                 output_dict["labels"].append(sample_labels)
-                output_dict["attention_mask"].append(attention_mask)
+                output_dict["attention_mask"].append(np.ones(len(sample_input_ids)))
                 output_dict["input_ids_len"].append(len(sample_input_ids))
                 output_dict["length_bucket"].append(examples["length_bucket"][i])
                 output_dict["doc_id"].append(doc_id)
@@ -332,16 +329,17 @@ def create_prediction_dataset(
 
         return output_dict
 
-    # Orig dataset has the following columns:
-    # ['content', 'lang', 'doc_id', 'input_ids', 'attention_mask', 'input_ids_len', 'length_bucket']
-
-    return orig_dataset.map(
+    ds = orig_dataset.map(
         map_fn,
         batched=True,
         remove_columns=["content", "lang"],
         num_proc=num_proc,
         desc="Creating prediction dataset",
+        batch_size=128,
+        writer_batch_size=128,
     )
+
+    return ds
 
 
 def main():
@@ -407,13 +405,22 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(final_model_dir, use_fast=True)
     model = modeling.CustomDecoderOnlyT5.from_pretrained(
-        final_model_dir, position_encoding_type=model_args.pe_type, output_non_reduced_loss=True
+        final_model_dir, model_args.pe_type, True
     )
     assert model.config.position_encoding_type == model_args.pe_type
+    assert model.output_non_reduced_loss == True
 
-    test_dataset = load_from_disk(
-        os.path.join(shared_storage_path, "santacoder_subsampled_32M_docs_test_uniform")
-    )
+    with training_args.main_process_first(desc="dataset map tokenization"):
+        test_dataset = load_from_disk(
+            os.path.join(
+                shared_storage_path,
+                "santacoder_subsampled_32M_docs_test_uniform_less_4500",
+            ),
+        )
+        test_dataset = test_dataset.shuffle(seed=42)
+        test_dataset = test_dataset.flatten_indices(num_proc=12)
+        test_dataset = test_dataset.select(range(3000))
+
     logger.info(f"Loaded dataset {test_dataset}")
     logger.info(f"Loaded tokenizer {tokenizer}")
 
@@ -432,13 +439,45 @@ def main():
         train_dataset=None,
         eval_dataset=None,
         tokenizer=tokenizer,
-        data_collator=data_collator,
+        data_collator=default_data_collator,
         compute_metrics=None,
     )
 
     # Increase batch size by 128
-    block_sizes = [512, 640, 750, 878, 1024, 1200, 1400, 1600, 1800, 2048, 2304, 2560]
-    results_dir = Path("perplexity_results")
+    #  32,   32, 32,   16,  16, 16
+    block_sizes = [
+        512,
+        640,
+        750,
+        878,
+        1024,
+        1200,
+        1400,
+        1600,
+        1800,
+        2048,
+        2304,
+        2560,
+        2560,
+    ]
+
+    def get_eval_device_batch_size(block_size):
+        return {
+            512: 64,
+            640: 58,
+            750: 48,
+            878: 38,
+            1024: 32,
+            1200: 26,
+            1400: 24,
+            1600: 24,
+            1800: 24,
+            2048: 18,
+            2304: 16,
+            2560: 16,
+        }[block_size]
+
+    results_dir = Path(shared_storage_path) / "perplexity_results_on_test"
     if trainer.is_world_process_zero():
         results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -456,25 +495,38 @@ def main():
         if trainer.is_world_process_zero():
             logger.info("Evaluating block size: %s", blk_sz)
 
-        pred_dataset = create_prediction_dataset(
-            test_dataset,
-            block_size=blk_sz,
-            bos_token_id=tokenizer.bos_token_id,
-            num_proc=128,
-        )
+        with training_args.main_process_first(desc="dataset map tokenization"):
+            pred_dataset = create_prediction_dataset(
+                test_dataset,
+                block_size=blk_sz,
+                bos_token_id=tokenizer.bos_token_id,
+                num_proc=64,
+            )
 
         if trainer.is_world_process_zero():
             logger.info("Length of pred_dataset: %s", len(pred_dataset))
 
-        output = trainer.predict(pred_dataset, ignore_keys=["logits", "past_key_values", "hidden_states", "attentions"])
-        losses = output.predictions
-        ppl = np.exp(losses)
+        batch_size = get_eval_device_batch_size(blk_sz)
+        trainer.args.per_device_eval_batch_size = batch_size
+
         if trainer.is_world_process_zero():
-            pred_dataset = pred_dataset.add_column("ppl", ppl)
-            pred_dataset = pred_dataset.add_column("losses", losses)
-            pred_dataset.save_to_disk(
-                results_dir / f"pred_dataset_{blk_sz}"
+            logger.info("batch_size: %s", batch_size)
+
+        output = trainer.predict(
+            pred_dataset,
+            ignore_keys=["logits", "past_key_values", "hidden_states", "attentions"],
+        )
+        trainer.log({"finished": blk_sz})
+
+        if trainer.is_world_process_zero():
+            losses = output.predictions
+            ppl = np.exp(losses)
+            pred_dataset = pred_dataset.remove_columns(
+                ["input_ids", "labels", "attention_mask"]
             )
+            pred_dataset = pred_dataset.add_column("ppl", np.squeeze(ppl))
+            pred_dataset = pred_dataset.add_column("losses", np.squeeze(losses))
+            pred_dataset.save_to_disk(result_file)
 
 
 if __name__ == "__main__":

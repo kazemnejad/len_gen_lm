@@ -3,7 +3,7 @@
 # APP_EXP_DIR should be a shared network storage. We save checkpoints and logs here.
 
 export APP_SHARED_STORAGE_PATH=/raid/
-export APP_CONFIG_PATH=configs/code_llm.json
+export APP_CONFIG_PATH=configs/code_llm_eval.json
 
 # TRANSFORMERS_CACHE and HF_DATASETS_CACHE
 export HF_HOME=/raid/hf_home
@@ -24,10 +24,11 @@ then
 fi
 
 export APP_EXP_DIR="/scratch_${PE_TYPE}/len_gen_lm_exps"
+export APP_SHARED_STORAGE_PATH="/scratch_${PE_TYPE}/"
 
 # Set Logger values
 export WANDB_PROJECT="santacoder"
-export WANDB_NAME="SantaCoder 1B $PE_TYPE"
+export WANDB_NAME="SantaCoder 1B $PE_TYPE (PPL Eval)"
 export WANDB_RUN_ID="final-santacoder-1b-${PE_TYPE}-eval"
 export WANDB_RESUME="allow"
 
@@ -43,5 +44,5 @@ torchrun \
     --nnodes=1 \
     --nproc_per_node=$NUM_GPUS \
     inference_llm.py \
-    configs/code_llm.json \
+    configs/code_llm_eval.json \
     $PE_TYPE >> "$APP_EXP_DIR/$PE_TYPE.log" 2>&1

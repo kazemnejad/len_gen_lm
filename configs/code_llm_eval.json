@@ -1,0 +1,17 @@
+{
+    "dataset_name": "santacoder_data_tokenized_1024",
+    "tokenizer_name": "santacoder_tokenizer",
+    "block_size": 1024,
+    "preprocessing_num_workers": 128,
+    "per_device_eval_batch_size": 128,
+    "eval_accumulation_steps": 1024,
+    "dataloader_pin_memory": true,
+    "dataloader_num_workers": 32,
+    "dataloader_drop_last": false,
+    "torch_compile": true,
+    "report_to": "wandb",
+    "seed": 42,
+    "bf16": true,
+    "bf16_full_eval": true,
+    "output_dir": "ignore"
+}
