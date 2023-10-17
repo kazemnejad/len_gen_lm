@@ -275,7 +275,7 @@ def create_prediction_dataset(
     block_size: int,
     bos_token_id: int,
     num_proc: int,
-    max_inference_toks: int = 100,
+    max_inference_toks: int = 200,
 ):
     block_size_minus_1 = block_size - 1
 
@@ -464,15 +464,15 @@ def main():
     def get_eval_device_batch_size(block_size):
         return {
             512: 64,
-            640: 58,
-            750: 48,
-            878: 38,
-            1024: 32,
-            1200: 26,
-            1400: 24,
-            1600: 24,
-            1800: 24,
-            2048: 18,
+            640: 52,
+            750: 42,
+            878: 32,
+            1024: 26,
+            1200: 20,
+            1400: 20,
+            1600: 20,
+            1800: 20,
+            2048: 16,
             2304: 16,
             2560: 16,
         }[block_size]
@@ -491,6 +491,8 @@ def main():
                 continue
         except Exception:
             pass
+
+        torch.cuda.empty_cache()
 
         if trainer.is_world_process_zero():
             logger.info("Evaluating block size: %s", blk_sz)

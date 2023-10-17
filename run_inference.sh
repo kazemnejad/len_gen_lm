@@ -45,4 +45,4 @@ torchrun \
     --nproc_per_node=$NUM_GPUS \
     inference_llm.py \
     configs/code_llm_eval.json \
-    $PE_TYPE >> "$APP_EXP_DIR/$PE_TYPE.log" 2>&1
+    $PE_TYPE >> "$APP_SHARED_STORAGE_PATH/$PE_TYPE.log.eval" 2>&1
