@@ -457,6 +457,22 @@ def main():
     ]
 
     def get_eval_device_batch_size(block_size):
+        if model_args.pe_type in ["alibi", "none"]:
+            return {
+                512: 60,
+                640: 48,
+                760: 38,
+                878: 28,
+                1024: 22,
+                1200: 16,
+                1400: 16,
+                1600: 16,
+                1800: 16,
+                2048: 16,
+                2304: 16,
+                2560: 12,
+            }[block_size]
+
         return {
             512: 64,
             640: 52,
