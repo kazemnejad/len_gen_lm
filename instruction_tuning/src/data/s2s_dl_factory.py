@@ -57,6 +57,7 @@ class Seq2SeqDataLoaderFactory(DataLoaderFactory):
         instance_processor: Optional[Lazy[DataInstanceProcessor]] = None,
         **kwargs,
     ):
+        hf_datasets.set_caching_enabled(enable_hf_datasets_cache)
         super().__init__(**kwargs)
 
         self.cache_dir = cache_dir
@@ -183,14 +184,16 @@ class Seq2SeqDataLoaderFactory(DataLoaderFactory):
                 lambda example, idx: {"idx": idx},
                 with_indices=True,
                 load_from_cache_file=False,
+                keep_in_memory=True,
                 desc="Adding index",
             )
 
         if self.instance_processor is not None:
             ds = ds.map(
                 self.instance_processor,
+                load_from_cache_file=False,
+                keep_in_memory=True,
                 num_proc=1,
-                desc="Processing instances",
             )
 
         ds = self._build_tokenized_dataset(stage, ds, tokenize=tokenize)
@@ -237,6 +240,8 @@ class Seq2SeqDataLoaderFactory(DataLoaderFactory):
                     is_training=stage == ExperimentStage.TRAINING,
                 ),
                 num_proc=min(4, self.num_proc) if not self.debug_mode else 1,
+                load_from_cache_file=False,
+                keep_in_memory=True,
                 desc="Tokenizing dataset",
             )
 
@@ -256,6 +261,7 @@ class Seq2SeqDataLoaderFactory(DataLoaderFactory):
                 self._get_group_fn(),
                 batched=True,
                 num_proc=min(4, self.num_proc) if not self.debug_mode else 1,
+                load_from_cache_file=False,
                 desc=f"Grouping texts in chunks of {self.decoder_only_block_size}",
             )
 
