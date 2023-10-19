@@ -90,7 +90,7 @@ class DecoderOnlyTrainer(Seq2SeqTrainerWithMetrics):
             and self.state.epoch <= 3
         ):
             _max_length = self.args.generation_max_length if max_length is None else max_length
-            max_length = min(_max_length, 256)
+            max_length = min(_max_length, 1024)
             logger.info(f"Reducing max_length to {max_length} for early epochs")
             self.log({"gen_max_length": max_length})
         else:

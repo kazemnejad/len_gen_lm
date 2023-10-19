@@ -32,9 +32,8 @@
         save_strategy: 'steps',
         logging_strategy: 'steps',
 
-        save_steps: 2000,
-        eval_steps: 2000,
-        max_steps: 40000,
+        save_steps: 300,
+        eval_steps: 300,
         logging_steps: 20,
         save_total_limit: 5,
 
@@ -43,6 +42,7 @@
         lr_scheduler_type: 'cosine',
         warmup_ratio: 0.02,
         weight_decay: 0.001,
+        num_train_epochs: 10,
 
         metric_for_best_model: 'seq_acc',
 
@@ -52,10 +52,9 @@
 
         auto_compute_batch_size: true,
 
-        target_batch_size: 64,
-
         per_device_eval_batch_size: 16,
-        per_device_train_batch_size: null,
+        per_device_train_batch_size: 2,
+        gradient_accumulation_steps: 4,
     },
     analyzers: [
         (import 'analyzers/instruct_analyzer.jsonnet'),

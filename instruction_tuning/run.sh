@@ -2,7 +2,7 @@
 
 
 export APP_SEED=42
-export APP_DS_SPLIT=instance_len
+export APP_DS_SPLIT=$FT_DATASET_SPLIT
 
 export SWEEP_NAME="SW-ft_t5_dec_1b_instruct_tune_pe_${FT_PE_TYPE}_octa___data-octa-instance_len"
 export SWEEP_CONFIGS='configs/sweeps/no_sweep.jsonnet'

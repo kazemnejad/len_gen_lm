@@ -21,9 +21,9 @@ export PRETRAINED_MODEL_PATH="/scratch/len_gen_lm_exps/1b__${PE_TYPE}/final-mode
 export NETWORK_SHARED_STORAGE_PATH="/scratch/"
 
 INSTRUCT_TUNE_CODEBASE=instruction_tuning
+LOG_FILE="${NETWORK_SHARED_STORAGE_PATH}/instruction_tuning_exps/${DATASET_SPLIT}__${PE_TYPE}.log"
 
 mkdir -p $NETWORK_SHARED_STORAGE_PATH/instruction_tuning_exps/
-
 
 ln -snf $NETWORK_SHARED_STORAGE_PATH/instruction_tuning_exps/ $INSTRUCT_TUNE_CODEBASE/experiments
 ln -snf $PRETRAINED_MODEL_PATH $INSTRUCT_TUNE_CODEBASE/experiments/t5_dec_only_1b_santacoder_$PE_TYPE
@@ -36,17 +36,20 @@ python -m venv /raid/instruction_tuning_venv
 source /raid/instruction_tuning_venv/bin/activate
 
 # Install requirements
-pip3 install torch torchvision torchaudio
-pip3 install tokenizers sacrebleu
+pip3 install torch torchvision torchaudio >> $LOG_FILE 2>&1
+pip3 install tokenizers sacrebleu >> $LOG_FILE 2>&1
 
 export SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
-pip3 install -r $INSTRUCT_TUNE_CODEBASE/requirements.txt
+pip3 install -r $INSTRUCT_TUNE_CODEBASE/requirements.txt >> $LOG_FILE 2>&1
 
 # Download dataset
-wandb artifact get --root $INSTRUCT_TUNE_CODEBASE/data kzmnjd/len_gen/data-octa-$DATASET_SPLIT
+wandb artifact get --root $INSTRUCT_TUNE_CODEBASE/data kzmnjd/len_gen/data-octa-$DATASET_SPLIT >> $LOG_FILE 2>&1
 
 export FT_PE_TYPE=$PE_TYPE
+export FT_DATASET_SPLIT=$DATASET_SPLIT
 
 # Run instruction tuning pipeline
-chmod a+x $INSTRUCT_TUNE_CODEBASE/run.sh
-$INSTRUCT_TUNE_CODEBASE/run.sh
+cd $INSTRUCT_TUNE_CODEBASE
+
+chmod a+x run.sh
+./run.sh >> $LOG_FILE 2>&1
