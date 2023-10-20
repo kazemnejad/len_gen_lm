@@ -47,7 +47,7 @@
         metric_for_best_model: 'seq_acc',
 
         predict_with_generate: true,
-        generation_max_length: 700,
+        generation_max_length: 1700,
         generation_num_beams: 1,
 
         auto_compute_batch_size: true,
