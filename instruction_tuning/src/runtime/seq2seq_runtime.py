@@ -879,7 +879,7 @@ class Seq2SeqRuntime(Runtime):
                     )
                     pred_texts = self.tokenizer.batch_decode(
                         batch_preds,
-                        skip_special_tokens=True,
+                        skip_special_tokens=False,
                         clean_up_tokenization_spaces=False,
                     )
                     pred_texts = [pred.strip() for pred in pred_texts]
@@ -951,12 +951,12 @@ class Seq2SeqRuntime(Runtime):
             for (obj_ds, obj_pred) in tqdm(zip(input_ds, lines_out)):
                 prompt = self.tokenizer.decode(
                     obj_ds["input_ids"],
-                    skip_special_tokens=True,
+                    skip_special_tokens=False,
                     clean_up_tokenization_spaces=False,
                 )
                 labels = [t for t in obj_ds["labels"] if t != -100]
                 target = self.tokenizer.decode(
-                    labels, skip_special_tokens=True, clean_up_tokenization_spaces=False
+                    labels, skip_special_tokens=False, clean_up_tokenization_spaces=False
                 )
 
                 idx = obj_ds["idx"]
@@ -970,6 +970,8 @@ class Seq2SeqRuntime(Runtime):
 
                 if prediction[: len(prompt)] == prompt:
                     prediction = prediction[len(prompt) :]
+                else:
+                    logger.warning("Prompt not found in prediction")
 
                 is_correct = prediction == target
                 if not is_correct:

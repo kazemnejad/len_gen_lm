@@ -45,18 +45,26 @@ for SEED in $SEEDS; do
 #
 #  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
 #    predict
-#
+  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+    predict --split valid --force
+
+  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+    combine_pred --split valid --force
+
+  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+    analyze_all --split valid
+
 #  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
 #    combine_pred
 #
 #  CUDA_VISIBLE_DEVICES=0 python src/main.py  --configs $CONFIGS_STR \
 #    analyze_all
 #
-#  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-#    predict --split valid
-#
-#  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-#    combine_pred --split valid
+  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+    predict --split valid
+
+  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+    combine_pred --split valid
 
   CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
     analyze_all --split valid

@@ -17,7 +17,7 @@ class OctaDataInstanceProcessor(DataInstanceProcessor):
             {
                 self.source_seq_key: source,
                 self.target_seq_key: targets,
-                "answer": targets,
+                "answer": targets.replace("<|endoftext|>", ""),
                 "category": self._get_category(example),
             }
         )
@@ -52,7 +52,7 @@ class OctaDataInstanceProcessor(DataInstanceProcessor):
 
     def extract_answer_from_prediction(self, prediction: str) -> Any:
         if "<commit_after>" in prediction:
-            prediction_str = prediction.split("<commit_after>")[1]
+            prediction_str = prediction.split("<commit_after>")[1].replace("<|endoftext|>", "")
         else:
             prediction_str = prediction
         return prediction_str
