@@ -965,8 +965,6 @@ class Seq2SeqRuntime(Runtime):
                 obj_pred["target"] = target
                 obj_pred["idx"] = idx
 
-                writer.write(obj_pred)
-
                 prediction = obj_pred["prediction"]
 
                 if prediction[: len(prompt)] == prompt:
@@ -975,6 +973,10 @@ class Seq2SeqRuntime(Runtime):
                     logger.warning("Prompt not found in prediction")
 
                 is_correct = prediction == target
+                obj_pred["is_correct"] = is_correct
+
+                writer.write(obj_pred)
+
                 if not is_correct:
                     dmp = dmp_module.diff_match_patch()
                     diff = dmp.diff_main(target, prediction)

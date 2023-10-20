@@ -56,3 +56,8 @@ class OctaDataInstanceProcessor(DataInstanceProcessor):
         else:
             prediction_str = prediction
         return prediction_str
+
+    def is_prediction_correct(self, prediction: str, data_instance: Dict[str, Any]) -> bool:
+        parsed_pred = self.extract_answer_from_prediction(prediction)
+        answer = data_instance["answer"]
+        return parsed_pred == answer
