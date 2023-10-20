@@ -39,24 +39,24 @@ for SEED in $SEEDS; do
   export WANDB_JOB_TYPE=best_run_seed_exp
   export WANDB_RUN_ID="${RUN_ID_PREFIX}__${SEED}"
     
-  torchrun --nnodes=1 --nproc_per_node=$NUM_GPUS \
-    src/main.py --configs $CONFIGS_STR \
-    train --eval_split valid
-
-  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-    predict
-
-  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-    combine_pred
-
-  CUDA_VISIBLE_DEVICES=0 python src/main.py  --configs $CONFIGS_STR \
-    analyze_all
-
-  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-    predict --split valid
-
-  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-    combine_pred --split valid
+#  torchrun --nnodes=1 --nproc_per_node=$NUM_GPUS \
+#    src/main.py --configs $CONFIGS_STR \
+#    train --eval_split valid
+#
+#  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+#    predict
+#
+#  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+#    combine_pred
+#
+#  CUDA_VISIBLE_DEVICES=0 python src/main.py  --configs $CONFIGS_STR \
+#    analyze_all
+#
+#  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+#    predict --split valid
+#
+#  CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
+#    combine_pred --split valid
 
   CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
     analyze_all --split valid
