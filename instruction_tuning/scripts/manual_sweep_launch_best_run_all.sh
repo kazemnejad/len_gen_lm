@@ -61,12 +61,12 @@ for SEED in $SEEDS; do
 #    analyze_all
 #
   CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-    predict --split valid
+    predict --split test --force
 
   CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-    combine_pred --split valid
+    combine_pred --split test --force
 
   CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
-    analyze_all --split valid
+    analyze_all --split test --force
 
 done
