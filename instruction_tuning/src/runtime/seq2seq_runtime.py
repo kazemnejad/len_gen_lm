@@ -885,6 +885,7 @@ class Seq2SeqRuntime(Runtime):
                     pred_texts = [pred.strip() for pred in pred_texts]
 
                     for pt in pred_texts:
+                        pt = pt.replace(self.tokenizer.pad_token, "")
                         all_objs.append({"prediction": pt})
 
                 jsonlines.Writer(writer).write_all(all_objs)
@@ -953,11 +954,11 @@ class Seq2SeqRuntime(Runtime):
                     obj_ds["input_ids"],
                     skip_special_tokens=False,
                     clean_up_tokenization_spaces=False,
-                )
+                ).replace(self.tokenizer.pad_token, "")
                 labels = [t for t in obj_ds["labels"] if t != -100]
                 target = self.tokenizer.decode(
                     labels, skip_special_tokens=False, clean_up_tokenization_spaces=False
-                )
+                ).replace(self.tokenizer.pad_token, "")
 
                 idx = obj_ds["idx"]
                 obj_pred["prompt"] = prompt
