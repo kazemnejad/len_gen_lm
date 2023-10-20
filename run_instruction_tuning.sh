@@ -41,6 +41,7 @@ pip3 install tokenizers sacrebleu >> $LOG_FILE 2>&1
 
 export SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
 pip3 install -r $INSTRUCT_TUNE_CODEBASE/requirements.txt >> $LOG_FILE 2>&1
+pip3 install --upgrade wandb
 
 # Download dataset
 wandb artifact get --root $INSTRUCT_TUNE_CODEBASE/data kzmnjd/len_gen/data-octa-$DATASET_SPLIT >> $LOG_FILE 2>&1
