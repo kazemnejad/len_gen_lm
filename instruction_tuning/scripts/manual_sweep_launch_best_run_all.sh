@@ -28,7 +28,7 @@ RUN_ID_PREFIX=$(python scripts/manual_sweep.py \
   --sweep_configs $SWEEP_CONFIGS \
   generate_deterministic_run_id --run_name "best_run")
 
-SEEDS="256788 234054 146317"
+SEEDS="256788"
 
 NUM_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
 
@@ -39,9 +39,9 @@ for SEED in $SEEDS; do
   export WANDB_JOB_TYPE=best_run_seed_exp
   export WANDB_RUN_ID="${RUN_ID_PREFIX}__${SEED}"
     
-#  torchrun --nnodes=1 --nproc_per_node=$NUM_GPUS \
-#    src/main.py --configs $CONFIGS_STR \
-#    train --eval_split valid
+  torchrun --nnodes=1 --nproc_per_node=$NUM_GPUS \
+    src/main.py --configs $CONFIGS_STR \
+    train --eval_split valid
 
   CUDA_VISIBLE_DEVICES=0 python src/main.py --configs $CONFIGS_STR \
     predict --split valid --force
